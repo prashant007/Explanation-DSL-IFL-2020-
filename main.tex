@@ -1,0 +1,909 @@
+\NeedsTeXFormat{LaTeX2e}
+
+\documentclass{jfp}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \usepackage{array}
+% \usepackage{mathpartir}
+% \usepackage[utf8]{inputenc}
+% \usepackage{color, colortbl}
+% \usepackage{float}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{minted}
+\usepackage{stackengine}
+% \usepackage{etoolbox}
+% \BeforeBeginEnvironment{minted}{\vspace{0pt plus 1pt minus 2pt}}
+% \AfterEndEnvironment{minted}{\vspace{0pt plus 1pt minus 2pt}}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{graphicx}
+\definecolor{processblue}{cmyk}{0.96,0,0,0}
+\newcommand{\NOTE}[2][gray]{\smallskip\noindent
+  \colorbox{#1!30}{\parbox{.98\linewidth}{{\small\textbf{#2}}}}
+}
+
+
+\usepackage{natbib}
+\bibliographystyle{jfp}
+% \setcitestyle{authoryear, open={(},close={)}}
+
+
+% \theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+
+
+%\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newcommand{\SP}[1][s]{\ensuremath{\textit{SP}_{#1}}}		   
+\newcommand{\VD}{\textsc{vd}}		   
+\newcommand{\DVD}{\textsc{dvd}}		   
+\newcommand{\prog}[1]{\mintinline[fontsize=\footnotesize]{haskell}{#1}}
+\newcommand{\prg}[2][blue]{\color{#1}\texttt{{\footnotesize #2}}\color{black}}
+
+
+\newminted{haskell}{frame=none,framesep=2mm,xleftmargin=\parindent,samepage=true,baselinestretch=1,fontsize=\footnotesize}
+\newminted[haskellfig]{haskell}{frame=bottomline,framesep=2mm,samepage=true,baselinestretch=1,fontsize=\footnotesize}
+
+			   
+
+% some general LaTeX settings			   
+\sloppy
+\sloppypar
+
+% to typeset URLs, URIs, and DOIs
+% \usepackage{url}
+% \def\UrlFont{\rmfamily}
+% \usepackage[hyphens]{url}
+% \renewcommand{\UrlFont}{\ttfamily\small}
+
+
+\begin{document}
+\journaltitle{JFP}
+\cpr{Cambridge University Press}
+\doival{10.1017/xxxxx}
+
+\label{firstpage}
+\totalpg{\pageref{lastpage}}
+\jnlDoiYr{2020}
+
+% \title{Explanations for Dynamic Programming\thanks{This work is partially supported by DARPA under the grant N66001-17-2-4030 and by the National Science Foundation under the grant CCF-1717300.}}
+
+\def\thetitle{Explainable Dynamic Programming}
+
+\title{\thetitle}
+\righttitle{\thetitle}
+\lefttitle{M.\ Erwig and P.\ Kumar}
+
+\begin{authgrp}
+\author{Martin Erwig and Prashant Kumar}
+\authorrunning{M.\ Erwig and P.\ Kumar}
+\affiliation{Oregon State University \\
+(\email{[erwig, kumarpra]@oregonstate.edu})}
+\end{authgrp}
+
+%\received{20 March 1995; revised 30 September 1998}
+
+\begin{abstract}
+%
+\end{abstract}
+
+\maketitle
+
+\noindent
+%
+% \fbox{\textbf{Conflicts of Interest: None}}
+
+\section{Introduction to MADM}
+Multi-attribute decision making (MADM) is an important component of modern decision sciences~\cite{MADMSurveys}. The theory and methods of MADM have been extensively applied in many areas, ranging from engineering projects, economics, to management and military projects. MADM has been successfully employed in areas such as investment decision making, venture capital project evaluation, facility location, bidding, and maintenance services~\cite{bookMADMAppls}. 
+
+The various options available for selection to the decision maker are called \emph{alternatives}. The MADM process produces a ranking of the various alternatives based on various factors called \emph{attributes}. For example, assume that we want to buy a new car and have the option of buying either a Honda, BMW, or a Toyota which are the alternatives of the decision process. Our criteria for selecting the car is based on the price of the car, the fuel efficiency of the car, and the safety rating of the car, the attributes of the decision making process. Finally, we assign each attributes a \emph{weight}, a fraction value signifying how important a certain attribute is to the overall decision making process. All the weight values must sum to 1. For example, consider a price sensitive customer for whom safety is not a major concern. A possible weight distribution of the three attributes could be $0.6$, $0.3$, and $0.1$ respectively. Similarly, a cab company for which price as well as the fuel efficiency might be equally important may assign a weight distribution of $0.4$, $0.4$, and $0.2$ respectively. A matrix showing the value of the attributes for the various alternatives is called a \emph{decision matrix}.
+
+MADM does not refer to just one method but rather to a family technique. We classify the MADM techniques based on how the attributes are arranged. In linear MADM techniques like the \emph{Weighted Sum Model (WSM)}, the attributes are arranged linearly like in the car selection example described above. A hierarchical MADM technique called the \emph{Analytic Hierarchy Process (AHP)} arranges the attributes in a hierarchical manner. In our car example, we could seek the advice of friends and experts to select the appropriate car each of who use price, fuel efficiency, and safety rating to evaluate the aptness of the cars. The AHP model for selecting the car is shown in Figure \ref{AHP_Car_Selection}. In addition to the AHP model for the example, we also have three decision matrices
+
+AHP is extensively used to model complex decision problems. 
+
+\subsection{Introduction to MDS Explanations}
+\NOTE{This section consists of introduction to linear MDS explanation to begin with. Post that we need a section on hierarchical MDS explanations.}
+
+\NOTE{Our contribution - Compare our DSL against software packages available for AHP primarily against IBM's ExpertChoice.}
+
+
+\section{MDS Explanations}
+
+\section{Introduction}
+Suppose we want to buy a new car. We list different options and collect features that are important in making a decision. Assume that the two brands of cars we are interested in are Honda and BMW and the factors determining the choice of cars are price, fuel efficiency and safety rating of the car. We may not be experienced enough to judge the various features of the car and therefore we may seek the help of friends and experts to compare the cars we have shortlisted with regards to the specified features. Finally, we decide how much weight to give to the opinions of friends and experts. The hierarchy of factors contributing towards the decision of selecting a car is shown in Figure \ref{AHP_Car_Selection}. 
+
+\tikzstyle{startstop} = []
+\tikzstyle{arrow} = []
+\begin{figure}[h]
+    \centering
+        \begin{tikzpicture}[node distance=1.2cm]
+        level 1/.style={level distance=0.5cm}
+        \node (total) [startstop] {Score};
+        \node (friends) [startstop, below of = total, xshift = -1cm] {Friends} ;
+        \node (experts) [startstop, right of = friends,xshift = 1cm] {Experts}; 
+        \node (price) [startstop, below of = friends,  xshift = -1cm] {Price};
+        \node (fuel) [startstop, right of = price,  xshift = 0.7cm] {Fuel Efficiency}; 
+        \node (safety) [startstop, right of = fuel,xshift = 1.2cm] {Safety Ratings};
+        \node (honda) [startstop, below of = fuel,  xshift = -1.1cm] {Honda}; 
+        \node (bmw) [startstop, right of = honda,xshift = 1cm] {BMW};
+        \draw [arrow] (total.south) -- (friends);
+        \draw [arrow] (total.south) -- (experts);
+        \draw [arrow] (friends.south) -- (price);
+        \draw [arrow] (friends.south) -- (fuel);
+        \draw [arrow] (friends.south) -- (safety);
+        \draw [arrow] (experts.south) -- (price);
+        \draw [arrow] (experts.south) -- (fuel);
+        \draw [arrow] (experts.south) -- (safety);
+        \draw [arrow] (price.south) -- (honda);
+        \draw [arrow] (price.south) -- (bmw);
+        \draw [arrow] (fuel.south) -- (honda);
+        \draw [arrow] (fuel.south) -- (bmw);
+        \draw [arrow] (safety.south) -- (honda);
+        \draw [arrow] (safety.south) -- (bmw);
+        \end{tikzpicture}
+    \caption{AHP Model for Selecting Car.}
+    \label{AHP_Car_Selection}
+\end{figure}    
+
+\section{Creating Object Values}
+We can represent the various levels of the decision process in AHP with Haskell data types as shown below.
+
+\begin{haskellcode}
+data User    = Friend | Expert 
+data Car     = Honda | BMW  
+data Feature = Price | Fuel | Safety 
+data Weight  = Weight 
+\end{haskellcode}
+
+Now we can relate the various levels which can happen in steps. An attribute map \prog{Attr a} lists the value of the various attributes listed at a given level of AHP. We use an object map \prog{Obj o a} to associate an attribute \prog{a} like price or fuel efficiency with an object \prog{o} like Honda or BMW. 
+\begin{haskellcode}
+data Attr a = Attr {unAttr :: M.Map a Double}
+data Obj o a = Obj {unObj :: M.Map o (Attr a)}
+\end{haskellcode}
+
+To begin with we can associate the price feature with the cars, that is assign each car its price. We start with an empty object map \prog{objects} and extend it by adding the price of each car using the \prog{addAttribute} function. \prog{objects} associates the various objects like Honda, BMW in this case with empty attribute maps generated by the \prog{noAttributes} function. We use the \prog{Spread} type to associate the distribution of values for different objects for a given attribute. 
+\begin{haskellcode}
+type Spread o = [(o,Double)]
+
+noAttributes :: Ord a => Attr a
+noAttributes = mkAttr []
+
+objects :: (Set o,Ord a) => Obj o a
+objects = mkObj [(o,noAttributes) | o <- members]
+\end{haskellcode}
+
+The \prog{addAttribute} function takes as input the attribute to be added, the spread value of various objects for the attribute, and an old attribute. It modifies the object map by adding the new attribute and the attribute value to the attribute map associated with every object of the object map.
+\begin{haskellcode}
+addAttribute :: (Ord o,Ord a) => a -> Spread o -> Obj o a -> Obj o a
+addAttribute c as bs 
+    = mkObj [(b,f c av bv) | (a,av) <- as,(b,bv) <- fromObj bs,a == b]
+    where f x xv ys = Attr $ M.insert x xv (unAttr ys)
+\end{haskellcode}
+We get the object map \prog{featureP} by adding the prices of cars to the empty object map. Similarly, we further add the safety attribute with the corresponding values for the two cars and 
+
+The safety attribute can be further added to the \prog{featureP} mapping giving us \prog{featureS} mapping. Similarly, we sequentially extend \prog{featureP} with safety and fuel efficiency measurements for both the cars which gives us the final map.
+\begin{haskellcode}
+featuresP :: Obj Car Feature
+featuresP = addAttribute Price [Honda --> 36000,BMW --> 24000] objects
+
+*Car> featuresF
+{Honda -> {Price -> 36000},
+ BMW -> {Price -> 24000}}
+
+featuresS :: Obj Car Feature
+featuresS = addAttribute Safety [Honda --> 30,BMW --> 70] featuresP
+
+*Car> featuresS
+{Honda -> {Price -> 36000,Safety -> 30},
+ BMW -> {Price -> 24000,Safety -> 70}}
+
+featuresF :: Obj Car Feature
+featuresF = addAttribute Fuel [Honda --> 36,BMW --> 24] featuresS
+
+*Car> featuresF
+{Honda -> {Price -> 36000,Fuel -> 36,Safety -> 30},
+ BMW -> {Price -> 24000,Fuel -> 24,Safety -> 70}}
+\end{haskellcode}
+If the number of attributes at the two levels being connected by the object map \prog{Obj o a}, that is levels corresponding to types \prog{o} and \prog{a}, is large then we can compute the final object map in one go using the \prog{gather} function as shown below. The function takes as input a distribution of values for the various attribute which we want to add encoded using the \prog{Spread} type, and recursively adds the various attributes to the empty object map. The final object map has all the attributes added to it. 
+\begin{haskellcode}
+gather :: (Set o,Set a) => (a -> Spread o) -> Obj o a
+gather f = foldl (\o a -> addAttribute a (f a) o) objects members
+\end{haskellcode}
+To add all the attributes in one go in our example, we create a \prog{featureInfo} function which is a distribution of the values of the three features of the cars for Honda and BMW. The \prog{featureInfo} function is supplied as an argument to the \prog{gather} function. \prog{feature} and \prog{featureF} are the same object maps constructed in different ways.
+\begin{haskellcode}
+featureInfo :: Feature -> Spread Car
+featureInfo x 
+    = case x of Price -> [Honda --> 24000,BMW --> 36000]
+                Safety -> [Honda --> 30,BMW --> 70]
+                Fuel   -> [Honda --> 36,BMW --> 24]
+
+features :: Obj Car Feature
+features = gather featureInfo
+\end{haskellcode}
+
+Suppose at some point we want to add another brand say Toyota in the brand of cars under consideration for buying. This is achieved using an \prog{addAlternative} function. It takes as input the object to be appended to the object map, a map showing the values of the various attributes for the given object, and the object to be amended. The amended object consists of the object with its different attributes and attribute values.
+\begin{haskellcode}
+addAlternative :: (Ord o,Ord a) => o -> (a -> Double) -> Obj o a -> Obj o a
+addAlternative o f vs = Obj $ M.insert o (mkAttr ls) (unObj vs)
+    where ls = map (\x -> (x,f x)) members
+\end{haskellcode}
+To amend our example to consist of Toyota as well, we simply amend the car data type to add the Toyota constructor, create a map of the various car attributes in \prog{toyotaAttributes}. We finally use the \prog{addAlternative} function to add the Toyota alternative with its different attribute values stored in \prog{toyotaAttributes} to the already existing object map \prog{features} of Honda and BMW.
+\begin{haskellcode}
+data Car = Honda | BMW | Toyota 
+
+toyotaAttributes :: Feature -> Double
+toyotaAttributes x = case x of
+        Price  -> 20000
+        Safety -> 50
+        Fuel   -> 30
+
+features2 :: Obj Car Feature
+features2 = addAlternative Toyota toyotaAttributes features
+
+*Car> features2
+{Honda -> {Price -> 24000,Fuel -> 36,Safety -> 30},
+ BMW -> {Price -> 36000,Fuel -> 24,Safety -> 70},
+ Toyota -> {Price -> 20000,Fuel -> 30,Safety -> 50}}
+ \end{haskellcode}
+ 
+We can delete an attribute from an already existing object map using the \prog{delAttribute} function. The function goes through every object of the object map sequentially and removes the attribute from the attribute map associated with each object.
+\begin{haskellcode}
+delAttribute :: (Ord o,Ord a) => Obj o a -> a -> Obj o a
+delAttribute os a = mkObj [(o,f a ov) | (o,ov) <- fromObj os]
+        where f x xs = Attr $ M.delete x (unAttr xs)
+                               
+featuresD = delAttribute features Price
+*Car> featuresD
+{Honda ->  {Fuel -> 36,Safety -> 30},
+ BMW -> {Fuel -> 24,Safety -> 70}}
+\end{haskellcode}
+
+We can also modify an existing object map with the \prog{modAttribute} function as shown below.
+\begin{haskellcode}
+modAttribute :: (Ord a,Ord o) => Obj o a -> a -> o -> Double ->  Obj o a
+modAttribute os a o' v 
+    = mkObj [if o == o' then f a o v  ov else p | p@(o,ov) <- fromObj os]
+    where f a o v ov = (o,Attr $ M.insert a v (M.delete a (unAttr ov)))
+
+featuresM = modAttribute features Price Honda 45000
+\end{haskellcode}
+
+\section{Normalizing Object Values}
+The different attributes in an object mapping are measured in different units thereby making any sort of comparison between them difficult. We introduce the concept of normalization here using which we can go from absolute values of various attributes expressed in terms of their respective units to unit-less relative values. 
+
+The normalization process depends on the ``valency" of an attribute, that is whether the attribute is beneficial (positive) or non-beneficial (positive). As the name suggests, for a beneficial attribute like fuel efficiency (measured in Km/l) a higher numerical value is desirable and a lower value is desirable for non-benefical attributes like price. We define a type class \prog{AttrValence} which implement the \prog{valence} function. The \prog{valence} function specifies the valency of various attributes at a given level as demonstrated by the \prog{AttrValence} instance declaration of the \prog{Feature} data type shown below. 
+\begin{haskellcode}
+data Valence = Pos | Neg
+
+class Ord a => AttrValence a where
+   valence :: a -> Valence
+   valence _ = Pos
+
+instance AttrValence Feature where
+   valence Price  = Neg
+   valence Fuel   = Pos
+   valence Safety = Pos
+\end{haskellcode}
+The \prog{normalize} function implements the normalization process for an attribute and the values of various features associated with it. It uses the \prog{valence} function to access the valency of the attribute. If the attribute has a positive valency then we divide every value associated with the attribute by the sum of all the values associated with the attribute. In the case of negative valency attribute, to get a normalized value associated with the attribute the reciprocal of the original value is divided by sum of reciprocal of all the values associated with the attribute. \begin{haskellcode}
+normalize :: AttrValence a => a -> Spread o -> Spread o
+normalize c as 
+    = let vs = [v | (_,v) <- as]
+          s = sum vs
+          s' = sum.map (\x -> 1/x) $ vs 
+      in case valence c of
+            Pos -> [(a,v/(sum vs)) | (a,v) <- as]
+            Neg -> [(a,(1/v)/s') | (a,v) <- as]
+\end{haskellcode}
+For example, the normalized values of the car prices for the three car are shown below. Since, price is a negative valency feature the cheapest car is assigned the highest values by the normalization process and vice-versa.
+\begin{haskellcode}
+*Car> normalize Price [(Honda,24000),(BMW,36000),(Toyota,20000)]
+[(Honda,0.349),(BMW,0.233),(Toyota,0.419)]
+\end{haskellcode}
+\prog{Val o a} is a type synonym for \prog{Obj o a}. However, we use \prog{Val o a} to represent a normalized object mapping instead of \prog{Obj o a} which represents the unnormalized object mappings. The transformation from \prog{Obj o a} to \prog{Val o a} is achieved using a function called \prog{valuation} which uses the \prog{normalize} function to achieve normalization.
+\begin{haskellcode}
+*Car> valuation features2
+{Honda -> {Price -> 0.349,Fuel -> 0.400,Safety -> 0.200},
+ BMW -> {Price -> 0.233,Fuel -> 0.267,Safety -> 0.467},
+ Toyota -> {Price -> 0.419,Fuel -> 0.333,Safety -> 0.333}}
+\end{haskellcode}
+
+\NOTE{The valuation function is too complicated to show here. Simplify it. }
+
+\section{Combining Object Mappings}
+We generate the object mappings between all the adjacent levels of the AHP diagram. That is, we have the object mappings of these types: \prog{Obj Car Feature}, \prog{Obj Feature User}, and \prog{Obj User Weight}. We saw the construction of the object map of \prog{Obj Car Feature} in the previous section. The construction of \prog{Obj Feature User} and \prog{Obj User Weight} are shown below.
+\begin{haskellcode}
+userInfo :: User -> Spread Feature
+userInfo x 
+    = case x of 
+        Friend -> [Price --> 0.5,Fuel --> 0.3,Safety --> 0.2]
+        Expert -> [Price --> 0.2,Fuel --> 0.4,Safety --> 0.4]
+
+users :: Obj Feature User
+users = gather userInfo
+
+weights :: Obj User Weight
+weights = addAttribute Weight [Friend --> 0.6,Expert --> 0.4] objects
+\end{haskellcode}
+Once we have all the object maps, we can now combine to generate a final valuation of type \prog{Val Car (Feature,User,Weight)} We combine the valuation: The valuation \prog{Val Car Feature}, obtained by applying to \prog{valuation} function to the object map of type \prog{Obj Car Feature}, is combined with the object map with type \prog{Obj Feature User} and create a valuation \prog{Val Car (Feature,User)} which we in turn combine with the object map of \prog{Obj User Weight} which results in a final valuation of type \prog{Val Car (Feature,User,Weight)}. 
+
+To recursively create these valuations we define a class \prog{ExtendVal} with the \prog{extendBy} function to combine a valuation and an object mapping and create a new valuation. 
+
+\NOTE{Provide a brief description of the code shown below.}
+
+% \begin{haskellcode}
+% mkOneTuple :: (Ord o,Ord a) => Obj o a -> Obj o (OneTuple a)
+% mkOneTuple = mkObj.map (\(o,a) -> (o,f a)).fromObj
+%   where
+%     f = mkAttr.map (\(b,n) -> (OneTuple b,n)).fromAttr
+
+% class (Projector a b,Ord d,Ord o,Set b,AttrValence c) 
+%       => ExtendVal o a b c d | a b c -> d where
+%   mkTuple :: o -> (a,b,c) -> Double -> (o,(d,Double))
+
+%   extendBy :: Val o a -> Obj b c -> Val o d
+%   extendBy as bs
+%     = mkVal [mkTuple o (aa,b,cc) (av*cv) 
+%              |(o,a) <- fromObj as,(aa,av) <- fromAttr a,
+%               (b,c) <- (fromObj.valuation) bs,
+%               (cc,cv) <- fromAttr c, proj aa==b]
+
+% instance (Set a,AttrValence b,Ord o) => 
+%           ExtendVal o (OneTuple a) a b (a,b) where
+%   mkTuple o (a,_,b) n = (o,((only a,b),n))
+
+% instance (Set b,AttrValence c,Ord o,Ord a) => 
+%           ExtendVal o (a,b) b c (a,b,c) where
+%   mkTuple o ((a,b),_,c) n = (o,((a,b,c),n))
+
+% \end{haskellcode}
+
+Note that in the example below, we use the \prog{val} functions to perform two operations on the object value features: it performs a valuation of the object mapping and post that makes the attribute one element tuple.
+\begin{haskellcode}
+val :: (Set o,AttrValence a) => Obj o a -> Val o (OneTuple a)
+val = mkOneTuple . valuation
+
+cars :: Val Car (Feature,User,Weight)
+cars = val features `extendBy` users `extendBy` weights
+
+{Honda -> {(Price,Friend,Weight) -> 0.180,
+           (Fuel,Friend,Weight) -> 0.108,
+           (Safety,Friend,Weight) -> 0.036,
+           (Price,Expert,Weight) -> 0.048,
+           (Fuel,Expert,Weight) -> 0.096,
+           (Safety,Expert,Weight) -> 0.048},
+ BMW -> {(Price,Friend,Weight) -> 0.120,
+         (Fuel,Friend,Weight) -> 0.072,
+         (Safety,Friend,Weight) -> 0.084,
+         (Price,Expert,Weight) -> 0.032,
+         (Fuel,Expert,Weight) -> 0.064,
+         (Safety,Expert,Weight) -> 0.112}}
+\end{haskellcode}
+
+The \prog{priority} function gets us the sum of all the individual attribute values corresponding to Honda or BMW thereby giving us the overall priority of cars.
+\begin{haskellcode}
+type Priority o = [(o,Fraction)]
+
+carPriority :: Priority Car 
+carPriority = priority cars
+
+*Car> carPriority
+[(Honda,0.516),(BMW,0.484)]
+\end{haskellcode}
+We can see that Honda pips out BMW with a higher priority value. However, since the priority values are close it may not be immediately apparent to the end user what attributes lead to the selection of Honda over BMW. We try answering this in next section. 
+
+\section{Generating Explanation}
+Once we have obtained the final valuation by combining all the object mappings, we can start generating explanations. The first step in generating the explanation for the car example involves selecting the relevant attributes for Honda and BMW. The \prog{select} function takes as input the final valuations for the car examples and filters the parts corresponding to Honda and BMW as can be seen below.
+\begin{haskellcode}
+type CarDecomp = Attr (Feature,User,Weight)
+
+honda :: CarDecomp
+honda = select Honda carsVal
+
+bmw :: CarDecomp
+bmw = select BMW carsVal
+
+*Car> honda
+{Honda -> {(Price,Friend,Weight) -> 0.180,
+           (Fuel,Friend,Weight) -> 0.108,
+           (Safety,Friend,Weight) -> 0.036,
+           (Price,Expert,Weight) -> 0.048,
+           (Fuel,Expert,Weight) -> 0.096,
+           (Safety,Expert,Weight) -> 0.048}}
+ 
+*Car> bmw
+ {BMW -> {(Price,Friend,Weight) -> 0.120,
+          (Fuel,Friend,Weight) -> 0.072,
+          (Safety,Friend,Weight) -> 0.084,
+          (Price,Expert,Weight) -> 0.032,
+          (Fuel,Expert,Weight) -> 0.064,
+          (Safety,Expert,Weight) -> 0.112}}
+\end{haskellcode}
+We express the various MDS concepts like value difference, support, barrier, dominators, MDS as type synonyms of the attribute map as shown below. Finally an explanation consists of a tuple of the value difference, the barrier, the list of all the dominators, and the list of all the MDS explanations. 
+\begin{haskellcode}
+type ValDiff a = Attr a 
+type Barrier a = Attr a 
+type Support a = Attr a 
+type MDS a = Attr a
+type Dom a = Attr a 
+type Explain b = (ValDiff b,Support b,Barrier b,[Dom b],[MDS b])
+\end{haskellcode}
+The value difference (computed with the \prog{diff} function) between Honda and BMW provides us with a element wise comparison between Honda and BMW. 
+\begin{haskellcode}
+vdCar :: CarDecomp
+vdCar = diff honda bmw
+
+*Car> vdCar
+{(Price,Friend,Weight) -> 0.060,
+ (Fuel,Friend,Weight) -> 0.036,
+ (Safety,Friend,Weight) -> -0.048,
+ (Price,Expert,Weight) -> 0.016,
+ (Fuel,Expert,Weight) -> 0.032,
+ (Safety,Expert,Weight) -> -0.064}
+\end{haskellcode}
+We can see that friends and experts feel that Honda is better is terms of price and fuel efficiency. However, both feel that BMW is a safer car. As the overall priority of the cars suggests, that raving reviews for safety ratings are not enough to turn the tide in favour of BMW. We can use the MDS concepts to determine the minimal set of features that lead to the selection of Honda. We use the \prog{explain} function to use the generate this explanation and \prog{pmds} to print this explanation. It turns out that even if experts had been neutral (but not negative) about the price of Honda, it still would have pipped BMW. That is, price considerations by friends, and fuel efficiency considerations by both friends and experts is the minimal reason for why Honda was selected over BMW.
+\begin{haskellcode}
+exp0 :: Explain (Feature,User,Weight) 
+exp0 = explain vdCar
+
+*Car> pmds exp0
+
+Value Difference: {(Price,Friend,Weight) -> 0.060,
+                   (Fuel,Friend,Weight) -> 0.036,
+                   (Safety,Friend,Weight) -> -0.048,
+                   (Price,Expert,Weight) -> 0.016,
+                   (Fuel,Expert,Weight) -> 0.032,
+                   (Safety,Expert,Weight) -> -0.064}
+
+Support: {(Price,Friend,Weight) -> 0.060,
+          (Fuel,Friend,Weight) -> 0.036,
+          (Price,Expert,Weight) -> 0.016,
+          (Fuel,Expert,Weight) -> 0.032}
+
+Barrier: {(Safety,Friend,Weight) -> -0.048,
+          (Safety,Expert,Weight) -> -0.064}
+
+MDS: {(Price,Friend,Weight) -> 0.060,
+      (Fuel,Friend,Weight) -> 0.036,
+      (Fuel,Expert,Weight) -> 0.032}
+\end{haskellcode}
+
+\section{Explanation Transformations}
+The explanations generated thus far can be further improved by providing functionalities that transform these explanations and make them easier to understand.  
+
+\subsection{Decluttering Explanations}\label{ReduceExpl}
+To begin with we notice that the attribute \prog{Weight} remains constant throughout the explanation in the MDS explanation in \prog{exp0}. Removing it would enhance the readability of explanations. We use the \prog{reduce} function provided by the \prog{Reduce} type class to remove a constant attribute value from a multi-level attribute map. The element to be removed is selected by the type annotation accompanying the reduce function. The \prog{Reduce} class definition and its two instances corresponding to the tuple of three elements are shown below. The reduce function uses a helper function \prog{rmv}, another function provided by the \prog{Reduce} type class. The \prog{rmv} function removes an element from the tuple type based on type annotation. 
+\begin{haskellcode}
+class Reduce a b | a -> b where
+  rmv :: a -> b 
+  
+  reduce :: (Ord a,Ord b) => Attr a -> Attr b 
+  reduce = mkAttr.map (\(x,n) -> (rmv x,n)).fromAttr
+
+instance Reduce (a,b,c) (b,c) where
+  rmv :: (a,b,c) -> (b,c)
+  rmv (a,b,c) = (b,c)
+
+instance Reduce (a,b,c) (a,c) where
+  rmv :: (a,b,c) -> (a,c)
+  rmv (a,b,c) = (a,c)
+
+instance Reduce (a,b,c) (a,b) where
+  rmv :: (a,b,c) -> (a,b)
+  rmv (a,b,c) = (a,b)
+\end{haskellcode}
+In the code shown below, we extract the MDS explanations from the explanation by pattern-matching on the complete explanation \prog{exp0} and select one of extracted MDS attributes using the \prog{head} function, and finally remove the \prog{Weight} attribute from the selected using the \prog{reduce} function. This transformed MDS explanation is finally bound to \prog{mds0}.
+\begin{haskellcode}
+mds0 :: MDS (User,Feature)
+mds0 = let (_,_,_,ms,_) = exp0
+       in  reduce (head ms)::Attr (User,Feature)
+       
+*Car> mds0
+{(Price,Friend) -> 0.060,
+ (Fuel,Friend) -> 0.036,
+ (Fuel,Expert) -> 0.032}
+\end{haskellcode}
+
+\subsection{Factorizing Explanations}
+The MDS explanations look a little less once they have been transformed with the \prog{reduce} function. However, parsing the significance of the individual attributes from the components of the MDS can be difficult. For example, in the \prog{mds0} explanation (Section \ref{ReduceExpl}) how do we understand the significance of the individual components. We could ask ``How does the opinion of friends compare against that of the experts in the decision to buy Honda over BMW?''. Similarly, we could ask ``How significant are the roles of the individual car features in the decision making process?''. We answer these fine grained questions about the MDS explanations using a function called \prog{factorize} provided by the \prog{GroupBy} type class which we describe in the next section. 
+
+\subsubsection {The GroupBy type class}
+Before we describe the design of the \prog{GroupBy} type class, we briefly discuss two of its superclasses, namely the \prog{Projector} and \prog{SumOut} type class. 
+
+\prog{Projector a b} is a multi-parameter type class. The definition of the type class and its two instances for the pair type are shown below. The \prog{proj} function provided by the \prog{Projector} type class projects an element from a n-tuple based on the type annotation.
+\begin{haskellcode}
+class Projector a b | a -> b where
+  proj :: a -> b 
+
+instance Projector (a,b) a where
+  proj = fst      
+
+instance Projector (a,b) b where
+  proj = snd
+ 
+*Car> proj (Friend,Fuel) :: Feature
+Fuel
+*Car> proj (Friend,Fuel) :: User
+Friend
+\end{haskellcode}
+\prog{SumOut a b} is again a multi-parameter type class which provides the \prog{sumOut} function that sums out the attributes corresponding to all but one level (the level corresponding to level \prog{b}) from \prog{Attr a}. For example, \prog{SumOut (a,b) b} singnifies that from the combined attribute maps of levels \prog{a} and \prog{b}, the attributes corresponding to type \prog{a} are summed out thereby generating a new attribute map entirely in terms of attributes of type \prog{b}. \prog{SumOut a b} is a sub-class of \prog{Projector a b}. Its type class definition and the two instances for the pair type are shown below. 
+\begin{haskellcode}
+class (Projector a b,Ord b) => SumOut a b | a -> b where
+  sumOut :: Attr a -> Attr b 
+  sumOut = mkAttr.map h.groupBy g.sortBy (compare `on` f).fromAttr
+    where h xs = ((f.head) xs,(sum.map snd) xs)
+          g x y = f x == f y
+          f = proj.fst
+
+instance Ord b => SumOut (a,b) b 
+instance Ord a => SumOut (a,b) a 
+\end{haskellcode}
+In the first example shown below, the value difference between Honda and BMW is expressed entirely in terms of the \prog{User} attribute by summing out the other attributes from the value difference. Similarly, in the second example the same value difference is expressed in terms of the \prog{Feature} attributes.
+\begin{haskellcode}
+*Car> sumOut vdCar :: Attr User
+{Friend -> 0.048,Expert -> -0.016}
+ 
+*Car> sumOut vdCar :: Attr Feature
+{Price -> 0.076,Fuel -> 0.068,Safety -> -0.112}
+\end{haskellcode}
+
+Factorization of an explanation extracts the individual contributions of attributes of a given level. It also shows how these contributions are synthesized. The level for which the contributions of the attributes is to be computed is conveyed by type annotation. The \prog{factorize} function sums out the attributes of all but the chosen level to get the contribution of attributes of the chosen level while also tracking how the individual components from the original attribute contribute.
+\begin{haskellcode}
+type Factor b c = [(b,Attr c,Double)]
+
+class (SumOut a b,Reduce a c,Projector a b) => GroupBy a b c | a -> b c where 
+  factorize :: (Ord a,Ord b,Ord c) => Attr a -> Factor b c
+  factorize xs = zipWith (\x y -> (fst x,reduce y,snd x)) (h xs) (k xs)
+      where h = sort.fromAttr.sumOut
+            k = map mkAttr.groupBy g.sortBy (compare `on` f).fromAttr 
+            g x y = f x == f y
+            f = proj.fst 
+\end{haskellcode}
+For example, consider the MDS explanation for \prog{mds0} from Section \ref{ReduceExpl}. The factorized explanation for \prog{mds0} in terms of the \prog{Feature} level is shown below. \prog{pFact} function pretty prints the factorizations. The factorized representation answers to the question about the relative importance of the price and fuel attributes in the explanation for selecting Honda over BMW. Clearly price seems to be a more important factor than fuel in the decision making process.
+\begin{haskellcode}
+m01 = pFact (factorize mds0 :: Factor Feature User)
+
+*Car> m01
+Price : 0.060 ({Friend -> 0.060})
+Fuel : 0.068 ({Friend -> 0.036,Expert -> 0.032})
+\end{haskellcode}
+Similarly, for the \prog{User} level, it turns out that friends had more of a say in tilting the scale in favour of Honda as compared to experts. 
+\begin{haskellcode}
+m02 = pFact (factorize mds0 :: Factor User Feature)
+
+*Car> m02
+Friend : 0.096 ({Price -> 0.060, Fuel -> 0.036})
+Expert : 0.032 ({Fuel -> 0.032})
+\end{haskellcode}
+
+\subsection{Localizing Explanations}
+We have tried making explanations easier to consume. However, the explanation terms (MDS explanations) involve features from various levels. The involvement of multiple levels makes it difficult for the end user to consume the explanation. Most human activities involve a complex interplay of various factors. It is not uncommon for us to untangle the complex interaction between the various factors and understand them one factor at a time. For example, the modern economy is a highly complex system and may depend on environmental factors like amount of rainfall, political factors like stability of the government in the country, and human/social factors like quality of labour force. It is not uncommon for economists/commentators to explain a certain economic event in terms of one factor. For example, the most popular explanation for 2008 financial crisis is the housing market collapse. 
+
+The \emph{generalize} function provided by the type class \prog{Generalize} allows the end users to choose the level at which they seek explanation and provides the explanation at the selected level. In the context of the car example, this means that users can query ``Whose opinion prevailed in favoring Honda over BMW?''. Similarly, we can also ask ``What car features lead to the selection of Honda over BMW?''. 
+\subsubsection{Type Class Generalize}
+
+\prog{Generalize a b} is a multi-argument type class where type \prog{a} represents the value difference consisting of attribute values from all the levels and type \prog{b} represents the level at which explanation is desired. \prog{Generalize a b} is a sub-class of class The \prog{generalize} function uses \prog{sumOut} to amend the value difference in terms of attributes of level \prog{b} entirely and generates explanations for this amended value difference. \prog{Generalize a b} is a sub-class of \prog{SumOut a b}
+\begin{haskellcode}
+class (Ord a,Ord b,SumOut a b) => Generalize a b | a -> b where
+    generalize :: ValDiff a -> Explain b
+    generalize = explain.sumOut
+
+instance (Ord a,Ord b) => Generalize (a,b) a 
+instance (Ord a,Ord b) => Generalize (a,b) b 
+\end{haskellcode}
+The total value difference remains constant throughout the various levels: We simply redistribute the value difference in terms of the elements at that level using the \prog{sumOut} function.
+
+% I think the redistribution operation (processing of summing out the attributes) is a valid operation and doesn't impact the correctness of the explanation process.
+
+We see that at the level of users represented by \prog{exp1} in the code shown below, friends are the reason why Honda was selected over BMW. Similarly, at the level of features represented by \prog{exp2}, price and fuel are the reason why Honda was preferred. 
+\begin{haskellcode}
+exp1 :: Explain User
+exp1 = generalize vdCar
+
+*Car> pmds exp1
+Value Difference: {Friend -> 0.048,Expert -> -0.016}
+
+Support: {Friend -> 0.048}
+
+Barrier: {Expert -> -0.016}
+
+MDS: {Friend -> 0.048}
+
+exp2 :: Explain Feature
+exp2 = generalize vdCar
+
+*Car> pmds exp2
+Value Difference: {Price -> 0.076,Fuel -> 0.068,Safety -> -0.112}
+
+Support: {Price -> 0.076,Fuel -> 0.068}
+
+Barrier: {Safety -> -0.112}
+
+MDS: {Price -> 0.076,Fuel -> 0.068}
+\end{haskellcode}
+
+\section{Case Study : Election Example}
+We present another example here which elucidates the versatility of our DSL. This example pertains to the explaining the result of presidential elections between Donald Trump and Hillary Clinton in 2016. Assume that before the elections a survey of the potential voters was conducted which tried to predict the potential outcome of the election along with the understanding the rationale for the choice of the voters. 
+
+\tikzstyle{startstop} = []
+\tikzstyle{arrow} = []
+\begin{figure}[h]
+    \centering
+        \begin{tikzpicture}[node distance=1.2cm]
+        level 1/.style={level distance=0.5cm}
+        \node (total) [startstop] {Score};
+        \node (rural) [startstop, below of = total, xshift = -1cm] {Rural} ;
+        \node (urban) [startstop, right of = rural,xshift = 1cm] {Urban}; 
+        \node (young) [startstop, below of = rural,  xshift = -1cm] {Young};
+        \node (middleAged) [startstop, right of = young,  xshift = 0.7cm] {Middle Aged}; 
+        \node (old) [startstop, right of = middleAged,xshift = 1.2cm] {Old};
+
+        \node (economic) [startstop, below of = middleAged,  xshift = -1.1cm] {Economic}; 
+        \node (environment) [startstop, left of = economic, xshift = -1cm] {Environment}; 
+        \node (foreign) [startstop, right of = economic,xshift = 1cm] {Foreign};
+        \node (health) [startstop, right of = foreign,xshift = 1cm] {Health};
+
+        \node (clinton) [startstop, below of = economic] {Clinton}; 
+        \node (trump) [startstop, right of = clinton,xshift = 1cm] {Trump};
+        \draw [arrow] (total.south) -- (rural);
+        \draw [arrow] (total.south) -- (urban);
+        \draw [arrow] (rural.south) -- (young);
+        \draw [arrow] (rural.south) -- (middleAged);
+        \draw [arrow] (rural.south) -- (old);
+        \draw [arrow] (urban.south) -- (young);
+        \draw [arrow] (urban.south) -- (middleAged);
+        \draw [arrow] (urban.south) -- (old);
+        
+        \draw [arrow] (young.south) -- (environment);
+        \draw [arrow] (young.south) -- (economic);
+        \draw [arrow] (young.south) -- (foreign);
+        \draw [arrow] (young.south) -- (health);   
+        
+        \draw [arrow] (middleAged.south) -- (environment);
+        \draw [arrow] (middleAged.south) -- (economic);
+        \draw [arrow] (middleAged.south) -- (foreign);
+        \draw [arrow] (middleAged.south) -- (health);   
+
+        \draw [arrow] (old.south) -- (environment);
+        \draw [arrow] (old.south) -- (economic);
+        \draw [arrow] (old.south) -- (foreign);
+        \draw [arrow] (old.south) -- (health);  
+
+
+        \draw [arrow] (environment.south) -- (clinton);
+        \draw [arrow] (economic.south) -- (clinton);
+        \draw [arrow] (foreign.south) -- (clinton);
+        \draw [arrow] (health.south) -- (clinton); 
+        
+        \draw [arrow] (environment.south) -- (trump);
+        \draw [arrow] (economic.south) -- (trump);
+        \draw [arrow] (foreign.south) -- (trump);
+        \draw [arrow] (health.south) -- (trump); 
+        \end{tikzpicture}
+    \caption{AHP Model for Predicting the 2016 Presidential Election.}
+    \label{AHP_Candidate}
+\end{figure} 
+
+The AHP model used for the problem is shown in Figure \ref{AHP_Candidate}. We assume that various factors affecting voters' choices are the geography of the areas they reside in that is whether they live in rural or urban areas, their age groups that is whether they are young, middle aged, or old, their policy leanings that is how to do they rate the importance of various policies like environment, economic, foreign, and health and finally the perception of the voters about how serious the two candidates are with regards to these policies. The Haskell data type representation of the various decision attributes is shown below.
+\begin{haskellcode}
+data Geography = Rural | Urban 
+data Demography = Young | MiddleAged | Old 
+data Policy = Environment | Economic | Foreign | Health 
+data Candidate = Clinton | Trump 
+data Population  = Population 
+\end{haskellcode}
+We begin by noting that 500 people are interviewed from rural and urban areas each for this opinion poll. This is encoded in Haskell in the \prog{populationInfo} distribution shown below. The object map for to the distribution is obtained using the \prog{gather} function also shown below. 
+\begin{haskellcode}
+populationInfo :: Population -> Spread Geography 
+populationInfo Population = [Rural --> 500,Urban --> 500]
+
+*Election> gather populationInfo
+{Rural -> {Population -> 500.000},
+ Urban -> {Population -> 500.000}}
+\end{haskellcode}
+Assume that the survey showed that the demography of rural areas is 20 \% youth, 30\% middle aged, and 50\% old. Similarly, demography of urban areas is 40\% youth, 40\% middle aged, and 20\% old. The demographic distribution of the rural and the urban areas and the corresponding object map is shown below. 
+\begin{haskellcode}
+geographyInfo :: Geography -> Spread Demography 
+geographyInfo x = case x of
+                      Rural -> [Young --> 100,MiddleAged --> 150,Old --> 250]
+                      Urban -> [Young --> 200,MiddleAged --> 200,Old --> 100]
+          
+*Election> gather geographyInfo
+{Young -> {Rural -> 100,Urban -> 200},
+ MiddleAged -> {Rural -> 150,Urban -> 200},
+ Old -> {Rural -> 250,Urban -> 100}}
+\end{haskellcode}
+The object map corresponding to \prog{geographyInfo} tells us that thereare  300 young voters in total with 100 of them in rural areas and 200 of them in urban areas. Similarly, we find that there are 350 each of middle aged and old voters in total. We can verify that this categorisation of voters also yields a total of 1000 voters, the number of voters that we started with.
+
+Now each demography of voters expresses what policies are important to them. Assume that in young voters who are 300 in number, ${1/3}^{rd}$ (100) of them plan to vote based on a candidate's education policy, ${1/6}^{th}$ (50) each for economic and foreign policy, and the remaining ${1/3}^{rd}$ (100) for health policy. The distribution \prog{demographyInfo} shows a similar distribution for middle aged and old voters as well in addition to the young voters.
+\begin{haskellcode}
+demographyInfo :: Demography -> Spread Policy
+demographyInfo x 
+    = case x of
+        Young -> [Environment --> 100,Economic --> 50,Foreign --> 50,Health --> 100]
+        MiddleAged -> [Environment --> 75,Economic --> 125,Foreign --> 75,Health --> 75]
+        Old -> [Environment --> 50,Economic --> 100,Foreign --> 50,Health --> 150]
+
+*Election> gather demographyInfo
+{Environment -> {Young -> 100,MiddleAged -> 75,Old -> 50},
+ Economic -> {Young -> 50,MiddleAged -> 125,Old -> 100},
+ Foreign -> {Young -> 50,MiddleAged -> 75,Old -> 50},
+ Health -> {Young -> 100,MiddleAged -> 75,Old -> 150}}
+\end{haskellcode}
+We obtain the count of voters who voted for environment, economic, foreign, and health policies from the object map shown above which is 225, 275, 175, and 325 respectively. Finally, each of these four groups of voters are asked who amongst Clinton and Trump can implement the pertinent policies for their groups most effectively. For example, ${4/5}^{th}$ of the voters voting primarily on environment policies feel that Clinton is better person than Trump to legislate the policies they want implemented. The distribution for all the four policies are specified by the \prog{policyInfo} function shown below. 
+\begin{haskellcode}
+policyInfo :: Policy -> Spread Candidate
+policyInfo x = case x of Environment-> [Clinton --> 180,Trump --> 45] 
+                         Economic -> [Clinton --> 55,Trump --> 220]
+                         Foreign  -> [Clinton --> 35,Trump --> 140]  
+                         Health   -> [Clinton --> 195,Trump --> 130]
+                         
+*Election> gather policyInfo
+{Clinton -> {Environment -> 180,Economic -> 55,Foreign -> 35,Health -> 195},
+ Trump ->   {Environment -> 45,Economic -> 220,Foreign -> 140,Health -> 130}}
+\end{haskellcode}
+The object map shown above shows the breakup of voters voting for candidates based on their policy affiliations. We also find that Trump and Clinton received a total of 535 and 465 voted respectively which makes Trump the winner in the opinion polls. 
+
+Once we have the distributions the various consecutive levels, we can compute the final valuation as shown below. The final valuation suggests that Trump has a higher chance of winning the elections than Clinton. 
+\begin{haskellcode}
+candidates :: Val Candidate (Policy,Demography,Geography,Population)
+candidates = val' policyInfo `extend` demographyInfo `extend` geographyInfo 
+             `extend` populationInfo
+
+*Election> priority candidates
+[(Clinton,0.465),(Trump,0.535)]
+\end{haskellcode}
+
+We can think of the priority scores of $0.535$ and $0.465$ for Trump and Clinton respectively as the normalized value the number of votes achieved by each of the candidate: $(535/(535 + 465) = 0.535)$ and $(465/(535 + 465) = 0.465)$. This intuition allows us a deeper understanding of the \prog{candidates} valuation shown below. We can multiply the values in the various rows in the valuation by 1000 which gives us a split of the votes in terms of the various geographies, demographics, and policies. For example, the first component of Trump's valuation suggests that out of the 1000 voters who were polled, 27 $(0.027 \times 1000)$ rural young voters voted for Clinton's environment policies as compared to just 7 rural young voters who voted for Trumps' environmental policies. The difference is accentuated in the urban areas where Clinton's environmental policies garner a substantial 53 votes from the young population as compared to just 13 votes for Trump's policies in the same demography. 
+\begin{haskellcode}
+*Election> candidates
+{Clinton -> {(Environment,Young,Rural,Population) -> 0.027,
+             (Environment,Young,Urban,Population) -> 0.053,
+                          ...
+            },
+ Trump -> {(Environment,Young,Rural,Population) -> 0.007,
+           (Environment,Young,Urban,Population) -> 0.013,
+                       ...
+          }}
+\end{haskellcode}
+
+Once we have the valuation, we can separate the valuation components for Trump and Clinton and compute the valuation difference as shown below. We also remove the \prog{Population} constructor from the value difference as it remains constant through all the components of the value difference and doesn't add any useful information.
+\begin{haskellcode}
+type CandidateDecomp = Attr (Policy,Demography,Geography,Population)
+
+trump :: CandidateDecomp
+trump = select Trump candidates
+
+clinton :: CandidateDecomp
+clinton = select Clinton candidates
+
+vdCandidate :: Attr (Policy,Demography,Geography)
+vdCandidate = reduce $ diff trump clinton
+\end{haskellcode}
+
+\subsection{Detailed Explanations for the Election Results}
+Once we compute the value difference, we can now start generating explanations. The campaign managers of the two candidates may want to know information like ``What policy of the candidates are popular and amongst which section of the electorate?" so that they can remedy the problematic areas and consolidate their areas  of strength. 
+
+We know that the advantages for Trump (and the disadvantage for Clinton) is recorded in the support component of the explanation. Similarly, disadvantage for Trump (and advantage for Clinton) is recorded in the barrier component of the explanation. We pattern match on the explanation to extract support and barrier components as shown below.
+\begin{haskellcode}
+expCandidate :: Explain (Policy,Demography,Geography)
+expCandidate = explain vdCandidate
+
+(_,support,barrier,_,_) = expCandidate
+\end{haskellcode}
+Now to get the policies (and its breakup) where Trump is at an advantage, we could factorize the \prog{support} components with respect to policy and get the following. The factorized support component tells us that Trump's economic and foreign seem to be attracting voters. His economic policy seem to be especially popular amongst middle aged rural and urban population and old rural population. Middle aged rural and urban population seem to be strong supporters for his foreign policy as well in addition to the young urban and old rural population. 
+\begin{haskellcode}
+policyTrump = pFact (factorize support :: Factor Policy (Demography,Geography))
+
+*Election> policyTrump
+Economic : 0.165 ({(Young,Rural) -> 0.010,
+                   (Young,Urban) -> 0.020,
+                   (MiddleAged,Rural) -> 0.032,
+                   (MiddleAged,Urban) -> 0.043,
+                   (Old,Rural) -> 0.043,
+                   (Old,Urban) -> 0.017})
+
+Foreign : 0.105 ({(Young,Rural) -> 0.010,
+                  (Young,Urban) -> 0.020,
+                  (MiddleAged,Rural) -> 0.019,
+                  (MiddleAged,Urban) -> 0.026,
+                  (Old,Rural) -> 0.021,
+                  (Old,Urban) -> 0.009})
+\end{haskellcode}
+
+We can do a similar analysis for Clinton as shown below. Note that the negative sign with the component values simply signifies the fact that these are barrier components. That is, they represent the attributes where Clinton has an advantage over Trump. We can see that Clinton's environment policies have a strong support amongst the young and middle aged urban population. She is clearly at an advantage with regards to the health policies but she manages to garner substantial support only from the old rural voters for this policy. The support from other for this policy is marginal. 
+\begin{haskellcode}
+policyClinton = pFact (factorize barrier :: Factor Policy (Demography,Geography))
+
+*Election> policyClinton
+Environment : -0.135 ({(Young,Rural) -> -0.020,
+                       (Young,Urban) -> -0.040,
+                       (MiddleAged,Rural) -> -0.019,
+                       (MiddleAged,Urban) -> -0.026,
+                       (Old,Rural) -> -0.021,
+                       (Old,Urban) -> -0.009})
+
+Health : -0.065 ({(Young,Rural) -> -0.007,
+                  (Young,Urban) -> -0.013,
+                  (MiddleAged,Rural) -> -0.006,
+                  (MiddleAged,Urban) -> -0.009,
+                  (Old,Rural) -> -0.021,
+                  (Old,Urban) -> -0.009})
+\end{haskellcode}
+
+In this section we only show factorization with regards to policy and not elucidate factorizations with respect to geography or the demography. Generally, we determine the aptness of a factorization based on the tasks at hand and who the end user towards whom the explanation is aimed at. 
+
+\subsection{Summary Explanations for Election Results}
+In the last section we saw detailed explanation of election results. However, not everyone may need and want the explanation in such detail. For example, the news channels may simply want to know ``How did the geography/demography/policy impact the election of Trump over Clinton?''. That is, we want to localize the explanation provided to just one level.
+
+We begin by explaining the impact of demography in the election. This explanation is encoded in \prog{expC1} as shown below. We observe that the young voters overall are against Trump whereas the middle aged and old voters are in his favour. The support by either of middle aged or old voters is enough to overcome the negative opinion of Trump amongst the young voters. Another thing to notice in the value difference information is the relatively strong support of Trump amongst the middle aged voters as 60 $(0.06 \times 1000 )$ more middle aged voters voted for Trump than Clinton in the opinion polls. 
+\begin{haskellcode}
+expDemography :: Explain Demography 
+expDemography = generalize vdCandidate 
+
+*Election> pmds expDemography
+
+Value Difference: {Young -> -0.020,MiddleAged -> 0.060,Old -> 0.030}
+
+Support: {MiddleAged -> 0.060,Old -> 0.030}
+
+Barrier: {Young -> -0.020}
+
+MDS: {MiddleAged -> 0.060}
+     {Old -> 0.030}
+\end{haskellcode}
+
+To understand the impact of geographical divide on the election, We encode an explanation at the level of geography and bind it to \prog{expGeography} as shown below. It turns out that Trump wins both the rural and urban voters. There is no barrier here as no components of the value difference have negative values. This means that either of rural or urban geographies are MDS explanations for Trump's victory. This might be surprising given that initial distributions might suggest that Clinton is in stronger position in urban areas especially amongst the young voters. However, the explanation informs us that overall Trump comfortably wins the urban votes. 
+\begin{haskellcode}
+expGeography :: Explain Geography
+expGeography = generalize vdCandidate 
+
+*Election> pmds expGeography
+
+Value Difference: {Rural -> 0.040,Urban -> 0.030}
+
+Support: {Rural -> 0.040,Urban -> 0.030}
+
+Barrier: {}
+
+MDS: {Rural -> 0.040}
+     {Urban -> 0.030}
+\end{haskellcode}
+
+Finally, to understand the impact of policies on the outcome of the election we encode the explanation at policy level and bind it to \prog{expPolicy} as shown below. The explanation at the policy level tell us that people preferred Clinton's environment and health policies to that of Trump's. However, it turns out that a strong backing of Trump's economic and foreign policy by the voters more than makes us for the negative perception he faces at the environment and health policy front. 
+\begin{haskellcode}
+expPolicy :: Explain Policy
+expPolicy = generalize vdCandidate 
+
+*Election> pmds expPolicy
+
+Value Difference:
+{Environment -> -0.135,Economic -> 0.165,Foreign -> 0.105,Health -> -0.065}
+
+Support:
+{Economic -> 0.165,Foreign -> 0.105}
+
+Barrier:
+{Environment -> -0.135,Health -> -0.065}
+
+MDS:
+{Economic -> 0.165,Foreign -> 0.105}
+\end{haskellcode}
+
+We have demonstrated in the section that our MDS explanation mechanism along with our DSL is flexible enough to generate explanations at varying degree of abstracting depending on the taks at hand and end users of the explanation. 
+
+\section*{Acknowledgements}
+This work is partially supported by DARPA under the grant N66001-17-2-4030 and by the National Science Foundation under the grant CCF-1717300.
+
+% \bibliographystyle{jfplike}
+% \bibliographystyle{jfp}
+\bibliography{References,explain,se,me}  % list here all the bibliographies that
+
+\label{lastpage}
+
+\end{document}
