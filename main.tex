@@ -4,6 +4,7 @@
 
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{nicefrac}
 % \usepackage{array}
 % \usepackage{mathpartir}
 % \usepackage[utf8]{inputenc}
@@ -38,6 +39,18 @@
 \newtheorem{lemma}[theorem]{Lemma}
 
 
+\newcommand{\norm}[1]{\ensuremath{\overline{#1}}}
+% \newcommand{\norm}[1]{\ensuremath{\underline{#1}}}
+\newcommand{\nR}{\norm{R}}
+\newcommand{\nT}{\norm{T}}
+\newcommand{\nQ}{\norm{Q}}
+\newcommand{\nr}{\norm{r}}
+\newcommand{\nv}{\norm{v}}
+\newcommand{\nw}{\norm{w}}
+\newcommand{\seq}[3]{\ensuremath{\overline{#3}^{#1:1..#2}}}
+
+
+
 %\DeclareMathOperator*{\argmin}{arg\,min}
 
 \newcommand{\SP}[1][s]{\ensuremath{\textit{SP}_{#1}}}		   
@@ -47,9 +60,13 @@
 \newcommand{\prg}[2][blue]{\color{#1}\texttt{{\footnotesize #2}}\color{black}}
 
 
-\newminted{haskell}{frame=none,framesep=2mm,xleftmargin=\parindent,samepage=true,baselinestretch=1,fontsize=\footnotesize}
-\newminted[haskellfig]{haskell}{frame=bottomline,framesep=2mm,samepage=true,baselinestretch=1,fontsize=\footnotesize}
+\newminted{haskell}{frame=none,framesep=0mm,xleftmargin=\parindent,samepage=true,baselinestretch=1,fontsize=\footnotesize}
+\newminted[haskellfig]{haskell}{frame=bottomline,framesep=0mintmm,samepage=true,baselinestretch=1,fontsize=\footnotesize}
 
+
+\setlength\partopsep{-\topsep}
+\addtolength\partopsep{-\parskip}
+\addtolength\partopsep{3mm}
 			   
 
 % some general LaTeX settings			   
@@ -74,7 +91,12 @@
 
 % \title{Explanations for Dynamic Programming\thanks{This work is partially supported by DARPA under the grant N66001-17-2-4030 and by the National Science Foundation under the grant CCF-1717300.}}
 
-\def\thetitle{A DSL for Hierarchical Explanations}
+% \def\thetitle{A DSL for Hierarchical Explanations}
+% \def\thetitle{A DSL for Explanatory AHP Decision Making}
+% \def\thetitle{A DSL for Explanatory [Multi-Attribute] Decision Making}
+% \def\thetitle{A DSL for AHP Decision Making with Explanations}
+\def\thetitle{AHP Decision Making: Functionally and with Explanations}
+
 
 \title{\thetitle}
 \righttitle{\thetitle}
@@ -95,13 +117,14 @@
 
 \maketitle
 
+
 \noindent
 %
 % \fbox{\textbf{Conflicts of Interest: None}}
 
 \section{Introduction}
 
-Multi-attribute decision making (MADM) is an important component of modern decision sciences~\citep{MADMSurveys}.  It comprises a number of different techniques, one of which is is the widely used \emph{Analytic Hierarchy Process} (AHP)~\citep{SAATY1987161} which allows aspects of the decision making process to be decomposed and arranged in a hierarchy. 
+Multi-attribute decision making (MADM) is an important component of modern decision sciences~\citep{MADMSurveys}.  It comprises a number of different techniques, one of which is the widely used \emph{Analytic Hierarchy Process} (AHP)~\citep{SAATY1987161} which allows aspects of the decision making process to be decomposed and arranged in a hierarchy. 
 
 The theory and methods of MADM have been extensively applied in many areas, ranging from engineering projects, economics, public administration, to management and military projects.
 %
@@ -113,22 +136,578 @@ The programming language support for AHP is not commensurate with the important 
 %
 In this paper we address this shortcoming by introducing an embedded Haskell DSL that facilitates a convenient, high-level formulation of AHP problems. In addition to solving AHP problems our DSL can also produce explanations of why a found optimal solution is better than its alternatives.
 
-\NOTE{Edited up to here.}
+\NOTE{We need to point out the FP-specific parts of the DSL solution/implementation and emphasize contributions of the paper. For example, talking about how matrix multiplication is represented by function/mapping refinement/extension.}
 
+
+\NOTE{Also, point out the flexibility offered by our DSL to dynamically adapt the data and valuations and compare it with how that would have to be done in the core AHP approach. Repeat in conclusion.}
+
+We introduce the problem domain of multi-attribute decision making and our basic representation with a simple (non-hierarchical) example in Section \ref{sec:flat}.
+%
+In Section \ref{sec:ahp} we will then ...
+
+\NOTE{Talk about matrices, matrix multiplication and how we represent this as functions.}
+
+
+... MDS, explanations 
+
+... related work.
+
+
+
+% \section{A Simple Example (need better title)}
+\section{Evaluating Non-Hierarchical Data}
+\label{sec:flat}
+
+Imagine you want to buy a new car and are trying to decide between, say, a Honda CRV and a BMW X1. If the comparison is based on only one attribute, such as price or fuel economy, the decision is easy, at least if the attribute is measured with values from a type with a total order. More realistically, however, the decision must take into account several different attributes that evaluate the choices along different dimensions. 
+%
+Let's assume that in our example we want to base our decision on price, fuel economy, and safety rating, which are all measured in different units (money, miles-per-gallon, a number between 1 and 10, respectively).
+%
+An approach that takes into account all the attributes must facilitate the comparison of values in different domains, which can be achieved by mapping attributes into one common domain.
+
+As a first step we can collect the relevant information in a data structure that maps cars to records of their features and corresponding values. To this end, we define data types for the different features on which to collect information and the cars that we plan to evaluate.
+
+\begin{haskellcode}
+data Car     = Honda | BMW | Toyota
+data Feature = Price | MPG | Safety 
+\end{haskellcode}
+
+\noindent
+%
+Using a smart constructor \prog{info} we can construct a mapping of cars to feature records, which are themselves mappings from attroibutes to numeric values; the arrow \prog{-->} is simply syntactic sugar for building pairs, see Figure \ref{fig:info}.
+
+\begin{haskellcode}
+carFeatures :: Info Car Feature
+carFeatures = info [Honda --> [Price --> 34000, MPG --> 30, Safety --> 9.8],
+                    BMW   --> [Price --> 36000, MPG --> 33, Safety --> 9.1]]
+\end{haskellcode}
+
+% \NOTE{So far we have only shown some parts of the implementation of the DSL. We have to decide what details to present and where to present them.}
+
+\begin{figure}[t]
+\begin{haskellcode}
+data Rec    a = Rec  {unRec  :: Map a Double}
+data Info o a = Info {unInfo :: Map o (Rec a)}
+
+info :: (Ord o,Ord a) => [(o,[(a,Double)])] -> Info o a
+(!)  :: Eq o          => Info o a -> o      -> Rec a
+diff :: (Ord o,Ord r) => Info o r -> o -> o -> Rec r
+\end{haskellcode}
+% \begin{haskellcode}
+% data Rec    a = Rec  {unRec  :: Map a Double}
+% data Info o a = Info {unInfo :: Map o (Rec a)}
+%
+% type Nums a = [(a,Double)]
+%
+% info :: (Ord o,Ord a) => [(o,Nums a)] -> Info o a
+% info ons = Info $ fromList [(o,mkRec ns) | (o,ns) <- ons]
+%
+% (-->) :: a -> v -> (a,v)
+% x --> y = (x,y)
+%
+% select :: Ord o => o -> Info o a -> Rec a
+% select o = fromJust . lookup o . unInfo
+%
+% (!) :: Eq o => Info o a -> o -> Rec a
+% (!) = flip select
+%
+% diff :: (Ord o,Ord r) => Info o r -> o -> o -> Rec r
+% diff i o1 o2 = i!o1 - i!o2
+%
+% \end{haskellcode}
+\caption{Data Representation via maps (based on \prg{Data.Map}).}
+\label{fig:info}
+\end{figure}
+
+\noindent
+%
+With this representation we can already perform some interesting computations. Since records can be defined as instances of \prog{Num}, we can employ subtraction to define an operation for comparing records of individual objects.
+
+\begin{haskellcode}
+> diff carFeatures Honda BMW
+{Price -> -2000.00, MPG -> -3.00, Safety -> 0.70}
+\end{haskellcode}
+
+\noindent
+%
+The comparison shows that while the Honda is cheaper and has a slightly better safety rating, it's fuel economy is worse.
+%
+Does that make the Honda or the BMW a better choice? It depends on how we value the different attributes and the corresponding differences in their values. To facilitate a better comparison we first normalize all attributes by mapping them to values in a common numeric interval\footnote{The AHP method uses the intervall [0..1], but for better readability we use the range 0 to 100 and remove the syntactically burdensome ``\prog{0.}'' prefixes, which also makes 3 or 4 digits of precision more palatable.} such as $0..100$ where larger means ``better.'' We can do this by using the function \prog{valuation}, see Figure \ref{fig:val}.
+%
+% The resulting type \prog{Val} is a type synonym for \prog{Info} but carries only normalized values.
+
+\begin{haskellcode}
+> valuation carFeatures
+{Honda -> {Price -> 51.43, MPG -> 47.62, Safety -> 51.85},
+ BMW   -> {Price -> 48.57, MPG -> 52.38, Safety -> 48.15}}
+\end{haskellcode}
+
+\noindent
+%
+Based on the normalized values we can compute the total values for the cars to immediately see how they compare.
+
+\begin{haskellcode}
+> total $ valuation carFeatures
+{Honda -> 150.9, BMW -> 149.1}
+\end{haskellcode}
+
+\noindent
+%
+Of course, all these considerations assume that each attribute is weighed equally, which is not really a realistic assumption.
+%
+It is not difficult to implement functions for computing different weighted averages of an attribute valuation. However, a more systematic approach for doing so in the context of the AHP methodology is to modify the valuation by multiplying it with a weight vector.
+%
+We will explain this in the next section.
+
+
+\noindent
+%
+The reader may have noticed the following curiosity about how the attributes have been turned into valuations: Whereas higher MPG values lead to higher valuations, higher prices lead to lower valuations, which is what we want (a high price is bad, a high MPG is good).
+%
+Since this semantic information cannot be inferred automatically, we have to provide it explicitly, which we do by assigning a so-called \emph{valence} to each attribute indicating whether large numbers actually mean a positive value contribution, which is the case for \prog{MPG} and \prog{Safety} but not for \prog{Price}.
+
+\begin{haskellcode}
+instance Valence Feature where
+  valence Price = False
+  valence _     = True
+\end{haskellcode}
+
+\noindent
+%
+Based on the valence information, valuation replaces each value $v_{ij}$ in a record 
+%
+$R_i = \{A_1 \mapsto v_{i1}, \ldots, A_k \mapsto v_{ik}\}$ 
+%
+that is part of a mapping 
+%
+$M = \{O_1 \mapsto R_1, \ldots, O_n \mapsto R_n\}$ 
+%
+by its normalized value $\nv_{ij}$, which is defined as follows.\footnote{We write \norm{v}, \norm{R}, and \norm{M} for normalized values, records containing normalized values, and mappings that carry normalized records, respectively.}
+%
+% --- OR:
+%
+% Based on the valence information, valuation replaces each value $v_{ij}$ in a record 
+% %
+% $R_i = \{\seq{j}{k}{A_j \mapsto v_{ij}}\}$ 
+% %
+% that is part of a mapping 
+% $M = \{\seq{i}{n}{O_i \mapsto R_i}\}$ 
+% %
+% by its normalized value $\nv_{ij}$, which is defined as follows.
+%
+% --- OR:
+%
+% Based on the valence information, valuation replaces each value $v_{ij}$ in a record 
+% %
+% $r_i = \{\seq{j}{k}{a_j \mapsto v_{ij}}\}$ 
+% %
+% that is part of a mapping 
+% $m = \{\seq{i}{n}{o_i \mapsto r_i}\}$ 
+% %
+% by its normalized value $\nv_{ij}$, which is defined as follows.
+%
+% --- END OR
+%
+If attribute $A_j$ has positive valence $(A_j^+)$, then $v_{ij}$ is normalized with respect to the sum of all values $v_{1j}, \ldots, v_{nj}$ used for that attribute. Otherwise $(A_j^-)$, normalization uses the reciprocals of the values.
+%
+\begin{align*}
+&\norm{v}_{ij} = \frac{v_{ij}}{\sum_{l=1}^{n} v_{lj}} \times 100
+\quad (A_j^+)
+&\norm{v}_{ij} &= \frac{\nicefrac{1}{v_{ij}}}{\sum_{l=1}^{n} \nicefrac{1} {v_{lj}}} \times 100
+\quad (A_j^-)
+\end{align*}
+%
+The multiplication by 100 scales the result to a number between 0 and 100.
+%
+The implementation of \prog{valuation} that implements this definition can be found in the accompanying code.
+
+The normalization step achieves first and foremost an unbiased comparison of the attribute differences. Is the price difference of \$2,000 more significant than a difference of 3 miles-per-gallon fuel efficiency?
+%
+By using the \prog{diff} function on the normalized records we can infer from comparing the absolute values that the answer is ``no.'' 
+
+% \begin{haskellcode}
+% > diff (valuation carFeatures) Honda BMW
+% {Price -> 2.86, MPG -> -4.76, Safety -> 3.60}
+% \end{haskellcode}
+%
+\begin{haskellcode}
+> let vd = diff (valuation carFeatures) Honda BMW
+{Price -> 2.86, MPG -> -4.76, Safety -> 3.60}
+\end{haskellcode}
+
+
+\begin{figure}[t]
+\begin{haskellcode}
+class Ord a => Valence a where
+  valence :: a -> Bool
+  valence _ = True
+
+class (Bounded a,Enum a,Ord a) => Set a where
+  members :: [a]
+  members = enumFromTo minBound maxBound
+
+type Val o a = Info o a
+
+valuation :: (Ord o,Set a,Valence a) => Info o a -> Val o a
+total     :: Ord a => Val o a -> Rec o
+\end{haskellcode}
+\caption{Valuations. The \prg{Set}\ class defines a function \prg{members}\ to enumerate all elements of an instance type, which is needed for iterations in several normalization functions. All attribute types must implement \prg{Set}.}
+\label{fig:val}
+\end{figure}
+
+
+\noindent
+%
+Note that the values for the attributes are based on the current data, which consists only of 2 cars. If we add more cars, the total available value of 100 for each attribute will be split among the three cars and the differences between two specific cars will inevitably become smaller. 
+%
+A more subtle effect is that the relative importance of an attribute can change as well. For example, consider the following addition to the car comparison.
+
+\begin{haskellcode}
+threeCars :: Info Car Feature
+threeCars = carFeatures `union`
+            info [Toyota --> [Price --> 27000, MPG --> 30, Safety --> 9.4]]
+\end{haskellcode}
+
+\noindent
+%
+The valuation yields, unsurprisingly, smaller values for each attribute.
+
+\begin{haskellcode}
+> valuation threeCars
+{Honda ->  {Price -> 31.2, MPG -> 32.3, Safety -> 34.6},
+ BMW ->    {Price -> 29.5, MPG -> 35.5, Safety -> 32.2},
+ Toyota -> {Price -> 39.3, MPG -> 32.3, Safety -> 33.2}}
+\end{haskellcode}
+
+\noindent
+%
+But more importantly, if we again compare the significance of the attributes, we see that the price difference between Honda and BMW, which hasn't changed, has lost in significance relative to the MPG difference.
+
+\begin{haskellcode}
+> let vd3 = diff (valuation threeCars) Honda BMW
+{Price -> 1.73, MPG -> -3.23, Safety -> 2.47}
+\end{haskellcode}
+
+\noindent
+%
+The price difference was about 60\% ($\approx2.9/4.8$) of the value that MPG contributed when we looked at 2 cars. Since the addition of the overall price range has increased through the addition of the third car while the safety rating range remained the same, the relative value has dropped to about 53\% ($\approx2.7/3.2$).
+%
+To get a precise picture of the impact each attribute has on the overall value difference, we can compute what we call their
+%
+\emph{value difference impact} (\emph{VDI}), and we can observe how the relative impacts change for a comparison of two cars when data is added, even if the data of the compared cars doesn't change.
+
+\begin{haskellcode}
+> impact vd
+{Price -> 25%, MPG -> 42%, Safety -> 33%}
+
+> impact vd3
+{Price -> 23%, MPG -> 43%, Safety -> 33%}
+\end{haskellcode}
+
+\noindent
+%
+Computing the impact of attributes is a special case of focusing in a multi-dimensional comparison on the contributions of attributes from a specific dimension. 
+%
+We will extend our example by additional attribute dimensions in Section \ref{sec:nested} and revisit the question of attribute impact and focus in Section \ref{sec:trans}.
+%
+In general, the relative contribution of different attributes to the overall valuation of individual items helps explain the rankings that are computed based on these valuations. We will talk more about explanation of comparisons and ranking decisions later in Section \ref{sec:mds}.
+
+\NOTE{What's the best name here? ``factorizing'' is OK, but ``grouping'' or even ``projecting'' might be more accurate.}
+
+
+
+% \section{AHP (need better title)}
+\section{Refined Evaluation Through Multi-Dimensional Attributes}
+\label{sec:ahp}
+\label{sec:nested}
+
+The basic form of valuation distributes 100 value points across $k$ alternatives for each of $n$ attributes, that is, the total number of points is $100n$, each attribute will on average have $100/k$ points, and each alternative will have on average $100n/k$ points. We have seen a few examples in the previous section.
+%
+This representation views a data set through the lens of comparing $n$ independent attributes. 
+%
+When we want to combine all attributes into one value to determine the best alternative, we can achieve this, as shown in the previous section, by simply extracting the total value with the function \prog{total}, but we can also do this more systematically by combining the three attributes into one.
+
+This operation is a special case of refining an attribute dimension of type \prog{a} by an attribute dimension of another type \prog{b}. In our example we want to refine the feature attributes by weights. 
+%
+To better explain the approach let us assume that we want to entertain different weightings (from which we can later select a specific one). Specifically, in addition to our own personal weighting scheme we also consider how experts weight the attributes. 
+%
+To this end, we first define a data type for the new attribute dimension capturing different opinions about what weighting scheme to use.
+
+\begin{haskellcode}
+data Opinion = Personal | Expert
+\end{haskellcode}
+
+\noindent
+%
+We can then record the different preferences about how to weight attributes in the same way as the data about car features.
+
+\begin{haskellcode}
+featureOpinions :: Info Feature Opinion
+featureOpinions = info [Price  --> [Personal --> 5, Expert --> 3],
+                        MPG    --> [Personal --> 3, Expert --> 5],
+                        Safety --> [Personal --> 2, Expert --> 2]]
+\end{haskellcode}
+
+\noindent
+%
+The weightings can be applied to the feature data by multiplying the two nested mappings. This essentially amounts to a matrix multiplication (which is how it is defined in AHP).
+%
+To prepare the extension we convert the valuation of car features into one that wraps the feature records in a singleton tuple. This requirement facilitates the overloading of the \prog{extendBy} function for arbitrary tuples, see Figure \ref{fig:multi}.
+
+\begin{haskellcode}
+featureVal :: Val Car (OneTuple Feature)
+featureVal = mkOneTuple (valuation carFeatures)
+
+carOpinions :: Val Car (Feature,Opinion)
+carOpinions = featureVal `extendBy` featureOpinions
+\end{haskellcode}
+
+
+\begin{figure}[t]
+\begin{haskellcode}
+class SubDim a b | a -> b where 
+  proj :: a -> b
+
+instance SubDim (a,b) a where proj = fst
+instance SubDim (a,b) b where proj = snd
+...
+
+extendBy :: (Ord o,Ord b,Valence c,Set c,Ord d,Tuple a c d,SubDim a b) => 
+             Val o a -> Info b c -> Val o d
+only   :: (Eq b,SubDim a b) => b -> Info o a -> Info o a
+except :: (Eq b,SubDim a b) => b -> Info o a -> Info o a
+\end{haskellcode}
+\caption{Functions for working with multi-dimensional attributes. \textbf{We also must explain the other classes \prg{Tuple}\ and \prg{SubDim}\ ...}.}
+\label{fig:multi}
+\end{figure}
+
+The values for the two attributes \prog{Personal} and \prog{Expert} refine the values of the \prog{Feature} attributes. The \prog{Opinion} dimension also acts as a summary of the \prog{Feature} dimension. 
+
+\begin{haskellcode}
+> carOpinions
+{Honda -> {(Price,Personal)  -> 25.71, (Price,Expert)  -> 15.43
+           (MPG,Personal)    -> 14.29, (MPG,Expert)    -> 23.81,
+           (Safety,Personal) -> 10.37, (Safety,Expert) -> 10.37},
+ BMW ->   {(Price,Personal)  -> 24.29, (Price,Expert)  -> 14.57,
+           (MPG,Personal)    -> 15.71, (MPG,Expert)    -> 26.19,
+           (Safety,Personal) -> 9.63,  (Safety,Expert) -> 9.63}}
+\end{haskellcode}
+
+\noindent
+%
+The valuation \prog{carOpinions} distributes 100 points as before across 2 car alternatives, but now for only 2 attributes, \prog{Personal} and \prog{Expert}, which can be seen when computing the totals, which now sum to 200.
+
+\begin{haskellcode}
+> total carOpinions
+{Honda -> 99.98, BMW -> 100.02}
+\end{haskellcode}
+
+\noindent
+%
+Extending a valuation 
+%
+$\norm{M} = \{O_1 \mapsto \nR_1, \ldots, O_n \mapsto \nR_n\}$
+%
+means to refine each record $\norm{R}_i= \{A_1 \mapsto \nv_{i1}, \ldots, A_k \mapsto \nv_{ik}\}$ according to a mapping $N = \{A_1 \mapsto S_1, \ldots, A_k \mapsto S_k\}$ that carries for each attribute $A_j$ a record $S_j$, which itself consists of $l$ attributes from a generally different domain, that is, 
+%
+$S_j = \{B_1 \mapsto w_{j1}, \ldots, B_l \mapsto w_{jl}\}$.
+%
+In the first step we can normalize $N$ by normalizing each record $S_j$ in the same way as described earlier, which yields
+%
+$\norm{S}_j = \{B_1 \mapsto \nw_{j1}, \ldots, B_l \mapsto \nw_{jl}\}$.
+%
+%
+% --- OR:
+%
+% Extending a valuation 
+% %
+% $\norm{M} = \{\seq{i}{n}{O_i \mapsto \nR_i}\}$
+% %
+% means to decompose each record 
+% %
+% $\nR_i= \{\seq{j}{k}{A_j \mapsto \nv_{ij}}\}$ 
+% %
+% according to a mapping 
+% %
+% $N = \{\seq{j}{k}{A_j \mapsto S_j}\}$ that carries for each attribute $A_j$ a record $S_j$, which itself consists of $l$ attributes from a generally different domain, that is, 
+% %
+% $S_j = \{\seq{l}{m}{B_l \mapsto w_{jl}}\}$.
+% %
+% In the first step we can normalize $N$ by normalizing each record $S_j$ in the same way as described earlier. 
+% %
+% $S_j = \{\seq{l}{m}{B_l \mapsto \nw_{jl}}\}$.
+% %
+%
+% --- OR:
+%
+% Extending a valuation 
+% %
+% $\norm{\mu} = \{\seq{i}{n}{o_i \mapsto \nr_i}\}$
+% %
+% means to decompose each record 
+% %
+% $\nr_i= \{\seq{j}{k}{a_j \mapsto \nv_{ij}}\}$ 
+% %
+% according to a mapping 
+% %
+% $\nu = \{\seq{j}{k}{a_j \mapsto s_j}\}$ that carries for each attribute $a_j$ a record $s_j$, which itself consists of $l$ attributes from a generally different domain, that is, 
+% %
+% $s_j = \{\seq{l}{m}{c_l \mapsto w_{jl}}\}$.
+% %
+% In the first step we can normalize $N$ by normalizing each record $s_j$ in the same way as described earlier. 
+% %
+% $s_j = \{\seq{l}{m}{c_l \mapsto \nw_{jl}}\}$.
+% %
+%
+% --- END OR
+
+Then the refinement is achieved by multiplying \norm{M} and \norm{N}, which, for each record $\nR_i$, combines each $A$ attribute with each $B$ attribute from the corresponding record $\norm{S}_i$ to define a joined value from the two attributes. This multiplication yields the mapping 
+%
+$\norm{L} = \{O_1 \mapsto \nQ_1, \ldots, O_n \mapsto \nQ_n\}$
+%
+where each record $\nQ_i$ has the following form. 
+% It has $k\times l$ entries
+%
+\[
+\nQ_i = \{(A_1,B_1) \mapsto \norm{u}_{i11}, \ldots,
+          (A_1,B_l) \mapsto \norm{u}_{i1l}, \ldots,
+          (A_k,B_1) \mapsto \norm{u}_{ik1}, \ldots, 
+          (A_k,B_l) \mapsto \norm{u}_{ikl}\}
+\]
+%
+where each value $\norm{u}_{ipq}$ ($1 \leq p \leq k,1 \leq q \leq l)$
+%
+%, one for each element of $\{A_1,\ldots,A_k\}\times\{B_1,\ldots,B_l\}$, which are
+%
+is defined as follows.
+\[
+\norm{u}_{ipq} = \frac{\nv_{ip}\times\nw_{pq}}{100}  
+\]
+The implementation for \prog{extendBy} that implements this definition can be found in the accompanying code.
+
+A comparison of the cars based on these sums implicitly values expert and personal experience equally. 
+%
+If we want to see how the cars compare under our personal vs.\ the expert view, we can project the valuation onto specific attributes in the \prog{Opinion} dimension, which produces either one of the two columns just shown for the printed value \prog{carOpinion}, and we can also compute the totals for those projections to see the effect of the different weightings.
+
+\begin{haskellcode}
+> total $ only Personal carOpinions
+{Honda -> 50.37, BMW -> 49.63}
+
+> total $ only Expert carOpinions 
+{Honda -> 49.61, BMW -> 50.39}
+\end{haskellcode}
+
+\noindent
+%
+We can observe that the personal weighting slightly favors the Honda whereas the expert weighting slightly favors the BMW. We can also see that the difference between the two cars under the expert valuation is slightly larger than under the personal valuation, which is consistent with the result of \prog{total carOpinions}.
+
+The function \prog{only} (like its dual \prog{except}) is an instance of a the following general function for extracting subsets of data.
+
+\begin{haskellcode}
+filter :: (a -> Bool) -> Info o a -> Info o a
+\end{haskellcode}
+
+\noindent
+%
+To facilitate the convenient projection onto individual components of tuple types, the functions' types require that the type of the attribute filtered upon (\prog{b}) is a subdimension of the attribute type of the data (\prog{a}), again see Figure \ref{fig:multi}.
+
+
+Finally, we can add another dimension to our car selection problem to aggregate the different opinions about how to weight features. This happens similarly to the previous refinement step, except that the new dimension has only one attribute.
+
+\begin{haskellcode}
+weight :: a -> [(Weight,a)]
+weight x = [Weighted --> x]
+
+cars :: Val Car (Feature,Opinion,Weight)
+cars = carOpinions `extendBy` info [Personal --> weight 0.6,Expert --> weight 0.4]
+\end{haskellcode}
+
+\noindent
+%
+By computing the total of the valuation we obtain the final verdict about how the cars' values compare according to the model.
+
+\begin{haskellcode}
+> total cars
+{Honda -> 50.07, BMW -> 49.93}
+\end{haskellcode}
+
+\noindent
+%
+Our library contains additional functions, for example, to change individual attribute values, to add and remove attributes, or to generate ranked lists of alternatives, but the functions shown here should already give a good impression of how to work with the DSL to model hierarchical decision problems.
+%
+In particular, note the high degree of flexibility that the functional implementation brings to the table: We can easily change data on the fly and instantly recompute valuations, differences, ranking, etc. Moreover, we can dynamically extract different slices of the data (cf. \prog{only}) and thus explore and look at the data from different angles through queries without changing the representation.
+
+
+\begin{figure}[t]
+\begin{small}
+    \begin{tabular}{@{}l|ccc@{}}
+    \multicolumn{1}{c|}{$B_1$} 
+    % \multicolumn{1}{c|}{\textit{Feature}} 
+    & \bf{Price}  & \bf{MPG} & \bf{Safety} \\
+    \hline  
+    \bf{Honda}  & 0.51 & 0.48 & 0.48  \\ 
+    \bf{BMW}    & 0.49 & 0.52 & 0.52 
+    \end{tabular}
+\hfill
+    \begin{tabular}{@{}l|cc@{}}
+    \multicolumn{1}{c|}{$B_2$} 
+    % \multicolumn{1}{c|}{\textit{Opinion}} 
+    & \bf{Personal}  & \bf{Experts}  \\
+    \hline  
+    \bf{Price}       & 0.5 & 0.2   \\ 
+    \bf{MPG}    & 0.3 & 0.4   \\
+    \bf{Safety}    & 0.2 & 0.4
+    \end{tabular}
+\hfill
+    \begin{tabular}{@{}l|c@{}}
+    \multicolumn{1}{c|}{$B_3$} 
+    % \multicolumn{1}{c|}{\textit{Weight}} 
+    & \bf{Weight}   \\
+    \hline  
+    \bf{Personal}  & 0.6  \\ 
+    \bf{Expert}  & 0.4
+    \end{tabular}
+\end{small}
+\caption{The AHP decision matrices for the car selection problem
+%
+($B_1\approx\textit{Feature}$,
+$B_2\approx\textit{Opinion}$, and
+$B_3\approx\textit{Weight}$).}
+\label{fig:matrix}
+\end{figure}
+
+
+Compare this to the AHP approach in which all relevant data is stored in a set of matrices. Figure \ref{fig:matrix} shows the AHP matrix representation of our car selection example.
+%
+To change a decision model, these matrices have to be edited, and values have to be renormalized before new rankings can be computed.
+%
+Specifically, suppose we want to add a third car to be considered in the comparison. We can't simply add another row to matrix $B_1$, we also have to change all existing entries, renormalizing them based on the newly added information. Since in our approach valuations are derived from the original data through a simple function, we can regenerate the required normalized data automatically.
+
+\begin{haskellcode}
+> valuation threeCars
+{Honda ->  {Price -> 31.21, MPG -> 32.26, Safety -> 34.63},
+ BMW ->    {Price -> 29.48, MPG -> 35.48, Safety -> 32.16},
+ Toyota -> {Price -> 39.31, MPG -> 32.26, Safety -> 33.22}}
+\end{haskellcode}
+%
+The hierarchical composition of the different levels is expressed in AHP through a DAG that shows all the multiplicative combinations of the involved attributes as they are used to compute an overall value at the top for each of the alternatives listed at the bottom, as shown in Figure \ref{fig:dag}.
+%
+The graph provides a blueprint for the structure of the matrices and is typically designed at the outset of modeling a decision problem. 
+%
+Once we have the normalized values for the various features of the involved alternatives stored in the matrices, the matrix product $B_1 B_2 B_3$ gives the valuations of the alternatives.
 
 \tikzstyle{startstop} = []
 \tikzstyle{arrow} = []
-\begin{figure}[t]
+\begin{figure}[bt]
     \centering
         \begin{tikzpicture}[node distance=1.2cm]
         level 1/.style={level distance=0.5cm}
-        \node (total) [startstop] {Score};
-        \node (friends) [startstop, below of = total, xshift = -1cm] {Friends} ;
-        \node (experts) [startstop, right of = friends,xshift = 1cm] {Experts}; 
+        \node (total) [startstop] {Weight};
+        \node (friends) [startstop, below of = total, xshift = -1cm] {Personal} ;
+        \node (experts) [startstop, right of = friends,xshift = 1cm] {Expert}; 
         \node (price) [startstop, below of = friends,  xshift = -1cm] {Price};
-        \node (fuel) [startstop, right of = price,  xshift = 0.7cm] {Fuel Efficiency}; 
-        \node (safety) [startstop, right of = fuel,xshift = 1.2cm] {Safety Ratings};
-        \node (honda) [startstop, below of = fuel,  xshift = -1.1cm] {Honda}; 
+        \node (fuel) [startstop, right of = price,  xshift = 1cm] {MPG}; 
+        \node (safety) [startstop, right of = fuel,xshift = 1cm] {Safety};
+        \node (honda) [startstop, below of = fuel,  xshift = -1cm] {Honda}; 
         \node (bmw) [startstop, right of = honda,xshift = 1cm] {BMW};
         \draw [arrow] (total.south) -- (friends);
         \draw [arrow] (total.south) -- (experts);
@@ -145,652 +724,51 @@ In this paper we address this shortcoming by introducing an embedded Haskell DSL
         \draw [arrow] (safety.south) -- (honda);
         \draw [arrow] (safety.south) -- (bmw);
         \end{tikzpicture}
-    \caption{The AHP Model for Car Selection Problem.}
-    \label{AHP_Car_Selection}
+    \caption{The AHP model for the car selection problem.}
+    \label{fig:dag}
 \end{figure}  
 
-\begin{figure}[t]
-% \centering
-\begin{subfigure}{.4\textwidth}
-\begin{small}
-    \begin{tabular}{l|lll}
-    \multicolumn{1}{c|}{$B_3$} 
-    & \bf{Price}  & \bf{Fuel} & \bf{Safety} \\
-    \hline  
-    \bf{Honda}  & 34000 & 30 & 9.8  \\ 
-    \bf{BMW}    & 36000 & 33 & 9.1  \\ 
-    \end{tabular}
-\end{small}
-\end{subfigure}
-\begin{subfigure}{.3\textwidth}
-\begin{small}
-    \begin{tabular}{l|ll}
-    \multicolumn{1}{c|}{$B_2$} 
-    & \bf{Friends}  & \bf{Experts}  \\
-    \hline  
-    \bf{Price}       & 0.4 & 0.6   \\ 
-    \bf{Fuel}    & 0.6 & 0.4   \\
-    \bf{Safety}    & 0.6 & 0.4   \\ 
-    \end{tabular}
-\end{small}
-\end{subfigure}
-\begin{subfigure}{.2\textwidth}
-\begin{small}
-    \begin{tabular}{l|l}
-    \multicolumn{1}{c|}{$B_1$} 
-    & \bf{Weight}   \\
-    \hline  
-    \bf{Friends}  & 0.6  \\ 
-    \bf{Experts}  & 0.4    \\
-    \end{tabular}
-\end{small}
-\end{subfigure}
 
-\caption{The Decision Matrices for the Car Selection Problem.}
-\label{fig:AHPExampleMatrices}
-\end{figure}
+% Moreover, even for fixed valuations, our approach supports the dynamic extraction of different slices of the data (cf. \prog{only}), whereas this is not possible in the AHP representation. 
+%
+The AHP approach is, in its original form, a proven, effective method for solving a fixed decision problem. Our realization as an embedded DSL turns the approach into a flexible data decision exploration tool that allows users to dynamically build and adapt decision problems.
 
 
-Imagine we want to buy a new car and are considering two choices namely Honda CRV and BMW X1. If we only consider price of the cars the decision is easy but there are other factors like the fuel efficiency and the safety ratings of the car which also need to be considered. We might know little cars and decide to rope in friends and experts for advice. The question is how do we integrate the various pieces of formation? AHP is a methodology which allows us to arrange the various decision components in a hierarchy. For our car example this looks the graph structure shown in Figure \ref{AHP_Car_Selection}. In general this hierarchical representation of the various decision components is also called the AHP model of the decision problem. 
-
-We start encoding the example in our DSL by defining the Haskell data types for various levels. 
-\begin{haskellcode}
-data Weight  = Weight
-data User    = Friend | Expert 
-data Feature = Price | Fuel | Safety 
-data Car     = Honda | BMW  
-\end{haskellcode}
-
-How do we make use of the AHP model that we have for the problem? We begin by listing the values of the various car features side by side for Honda and BMW shown by matrix $B_3$ in Figure \ref{fig:AHPExampleMatrices}. Now we note the importance that friends and experts give to each of the car features in matrix $B_2$. Finally, we express the importance that we assign to the advice of friends and experts in matrix $B_1$. These matrices are also called \emph{decision matrices} in the AHP parlance. 
-
-The DSL defines the attribute map \prog{Attr a} and the \prog{Obj o a} to encode the decision matrices described above. 
-\begin{haskellcode}
-data Attr a = Attr {unAttr :: M.Map a Double}
-data Obj o a = Obj {unObj :: M.Map o (Attr a)}
-\end{haskellcode}
-An attribute map lists the value of the various attributes listed at a given level of the AHP model. We use an object map \prog{Obj o a} to encode the various decision matrices of an AHP. The user, however, doesn't need to worry about constructing or modifying the object map themselves. We provide combinators which make it convenient to work with these definitions. 
-
-The DSL defines a \prog{Spread} type to associate the distribution of values for different objects for a given attribute.
-\begin{haskellcode}
-type Spread o = [(o,Double)]
-\end{haskellcode}
-Now we record the basic data about the car using the \prog{featureInfo} function shown below which can be converted into object maps using the \prog{gather} function. 
-\begin{haskellcode}
-featureInfo :: Feature -> Spread Car
-featureInfo x 
-    = case x of Price ->  [Honda --> 34000,BMW --> 36000]
-                Safety -> [Honda --> 9.8,BMW --> 9.1]
-                Fuel   -> [Honda --> 30,BMW --> 33]
-
-features :: Obj Car Feature
-features = gather featureInfo
-
-*Car> features
-{Honda -> {Price -> 34000,Fuel -> 30,Safety -> 9.8},
- BMW   -> {Price -> 36000,Fuel -> 33,Safety -> 9.1}}
-\end{haskellcode}
-We similarly create two more object maps: \prog{users} between the level of decision makers (friends and experts) and that of the car features and a map \prog{weight} showing the importance attached to the recommendations of the various decision makers as shown below. 
-\begin{haskellcode}
-userInfo :: User -> Spread Feature
-userInfo x = case x of Friend -> [Price --> 0.5, Fuel --> 0.3, Safety --> 0.2]
-                       Expert -> [Price --> 0.2, Fuel --> 0.4, Safety --> 0.4]
-
-users :: Obj Feature User
-users = gather userInfo
-
-weightsInfo :: Weight -> Spread User 
-weightsInfo Weight = [Friend --> 0.6,Expert --> 0.4]
-
-weights :: Obj User Weight
-weights = gather weightsInfo
-\end{haskellcode}
-
-The different car features are expressed in different units which makes any sort of comparison between them difficult. This is because for some features like fuel efficiency (measured in miles/gallon) a higher numerical value is desirable whereas for some other features like price a low numerical value is desirable. The normalization step solves this problem by converting the values of various features expressed in their respective units to unit-less relative values between 0 and 1. 
-
-The DSL defines a type class \prog{AttrValence} which implements the \prog{valence} function. The \prog{valence} function specifies the valency of various attributes at a given level as demonstrated by the \prog{AttrValence} instance declaration of the \prog{Feature} data type shown below. 
-\begin{haskellcode}
-data Valence = Pos | Neg
-
-class Ord a => AttrValence a where
-   valence :: a -> Valence
-   valence _ = Pos
-
-instance AttrValence Feature where
-   valence Price  = Neg
-   valence Fuel   = Pos
-   valence Safety = Pos
-\end{haskellcode}
-
-The \prog{valuation} function provided by the DSL allows us to normalize the various feature values in an object map. The DSL defines a type \prog{Val o a}, which is a type synonym for \prog{Obj o a}, to represent normalized object mappings. The normalized \prog{features} object map is shown below. Note that for every normalized feature say price, the feature values for the two options Honda (0.514) and BMW (0.486) sum to 1.  
-\begin{haskellcode}
-*Car> valuation features
-{Honda -> {Price -> 0.514,Fuel -> 0.476,Safety -> 0.519},
- BMW   -> {Price -> 0.486,Fuel -> 0.524,Safety -> 0.481}}
-\end{haskellcode}
-Note that in the example below, we use the \prog{val} functions to perform two operations on the object value features: it performs a valuation of the object mapping and post that makes the attribute one element tuple.
-\begin{haskellcode}
-val :: (Set o,AttrValence a) => Obj o a -> Val o (OneTuple a)
-val = mkOneTuple . valuation
-\end{haskellcode}
-
-Once we have the normalized values of the various features of the car, we are now ready to find out which car we should buy. In AHP methodology the various normalized decision matrices are multiplied to arrive at the priority scores for the various car options. More specifically, the matrix product ${B_3}^{'} B_2 B_1$, where ${B_3}^{'}$ is the normalized matrix corresponding to $B_3$ (Figure \ref{fig:AHPExampleMatrices}), gives us the priority scores of Honda and BMW. Note that matrix $B_2$ and $B_1$ are already normalized and thus need not be modified. The priorities for the options show their ``goodness'' or their desirability from a decision making point of view. 
-
-The DSL defines a type class \prog{ExtendVal} (that stands for ``extend valuations'') which defines a function called \prog{extendBy}. We can synthesize the priorities for the car options from the corresponding object maps using the \prog{extendBy} function. The priority synthesis computation for our car example is shown below. 
-\begin{haskellcode}
-cars :: Val Car (Feature,User,Weight)
-cars = val features `extendBy` users `extendBy` weights
-\end{haskellcode}
-
-Once we have performed the priority synthesis step, we can find out the individual priorities of Honda and BMW as shown below. As we can see Honda edges out BMW to become the preferred car. 
-\begin{haskellcode}
-*Car> priority cars
-[(Honda,0.503),(BMW,0.497)]
-\end{haskellcode}
-
-Now that we have the priority values of the cars, we may want to understand the decision making process like what role did the various decision components and the different decision makers play in the outcome. The DSL provides a log of the priority synthesis step which can help us answer questions like the above. The priority synthesis log for the car example is shown below. 
-\begin{figure}
-    \centering
-\begin{haskellcode}
-*Car> cars
-{Honda -> {(Price,Friend,Weight) -> 0.154,
-           (Price,Expert,Weight) -> 0.041,
-           (Fuel,Friend,Weight) -> 0.086,
-           (Fuel,Expert,Weight) -> 0.076,
-           (Safety,Friend,Weight) -> 0.062,
-           (Safety,Expert,Weight) -> 0.083},
- BMW   -> {(Price,Friend,Weight) -> 0.146,
-           (Price,Expert,Weight) -> 0.039,
-           (Fuel,Friend,Weight) -> 0.094,
-           (Fuel,Expert,Weight) -> 0.084,
-           (Safety,Friend,Weight) -> 0.058,
-           (Safety,Expert,Weight) -> 0.077}}
-\end{haskellcode}
-    \caption{The Priority Synthesis Log for the Car Example}
-    \label{fig:my_label}
-\end{figure}
-
-The log tells us that the since the price of Honda is lower than that BMW, and since the friends factor the price very heavily in recommending a new car, their combined effect contributes a large value of 0.154 out of the total priority score 0.503 of Honda. In contrast, the combined effect of friends and their price consideration contributes 0.146 out of the total priority score 0.497 of BMW. We can do this for all the decision components and gain a deeper understanding of why Honda gets a higher priority score than BMW.
-
-The analysis of the priority synthesis log is a good starting point to understand the output of AHP, however, manually analyzing the logs may become tedious or may not even be possible when the size of the log gets large. Additionally, this ad hoc analysis may not be able to answer the more abstract questions posed by the users like ``Why was Honda preferred over BMW?'', ``Who amongst the friends and experts was responsible for tilting the scale in favour of Honda?'', and ``Which car features led to the selection of Honda over BMW?''. 
-
-\emph{Minimal Dominating Sets}~(MDS)~\citep{DBLP:conf/padl/ErwigKF20} is an explanation mechanism which automates the analysis of the log and can answer the questions posed above. Depending on who the user is they may want explanations at varying degree of details. For example, an expert user of the domain may want detailed explanation as compared to a non-expert who may want a more abstract explanation. Our DSL affords this flexibility to the end users and provides combinators allowing them to generate explanations at the desired degree of detail. We discuss the MDS explanation mechanism and the various explanation combinators in later on in the paper. 
-
-We may want to add one other car namely Toyota 4Runner to the list of cars to choose from. This requires us to amend the decision matrix to reflect the updated price. Let us for a moment look at how this task would be handled by other existing libraries for AHP. Most of the these library take normalized decision matrices as input. Thus, we may only have access to the normalized decision matrix while trying to amend it. To amend the decision matrix, we need to revert to the original unnormalized matrix, amend the unnormalized matrix with the values for Toyota and normalize the amended matrix again. There can be a situation where the person who collected the unnormalized matrix values in original units is not available and all we are left with is the normalized decision matrix. This makes the task of amending and maintaining AHP code difficult. 
-
-Our DSL allows us to work with unnormalized values. It also provides combinators to assist in modifying the AHP model and the associated decision matrices which we elucidate below. We begin by amending the \prog{Car} data type to add the Toyota constructor and create a function \prog{toyotaAttributes} specifying the value of the various attributes for Toyota. 
-\begin{haskellcode}
-data Car = Honda | BMW | Toyota 
-
-toyotaAttributes :: Feature -> Double
-toyotaAttributes x = case x of
-        Price  -> 20000
-        Safety -> 50
-        Fuel   -> 30
-\end{haskellcode}
-We finally use the \prog{addAlternative} function to add the Toyota alternative with its different attribute values stored in \prog{toyotaAttributes} to the existing object map \prog{features} which consists of Honda and BMW as shown below. 
-\begin{haskellcode}
-features' :: Obj Car Feature
-features' = addAlternative Toyota toyotaAttributes features
- \end{haskellcode}
-
-Suppose we want to upgrade to a different Honda CRV variant which has a higher price of 35000 but has the same fuel efficiency and safety rating and may want to update the price of Honda. The DSL defines a function \prog{modAttribute} which updates an attribute of an existing object map as shown below. 
-\begin{haskellcode}
-featuresM = modAttribute features Price Honda 35000
-*Car> featuresM
-{Honda  -> {Price -> 35000,Fuel -> 30,Safety -> 9.8},
- BMW    -> {Price -> 36000,Fuel -> 33,Safety -> 9.1}}
-\end{haskellcode}
-
-Assume that we realize that we don't plan to use the car on a day to day basis which means that fuel efficiency is no longer of concern to us. The DSL provides a \prog{delAttribute} function which can be used to delete the now extraneous fuel feature from the object map as shown below. 
-\begin{haskellcode}
-featuresD = delAttribute features Fuel
-*Car> featuresD
-{Honda ->  {Price -> 34000,Safety -> 9.8},
- BMW   ->  {Price -> 36000,Safety -> 9.1}}
-\end{haskellcode}
+While modeling a decision problem to then compute an optimal solution is certainly the core of decision making, it is only one part of the decision-making process. Once an optimal alternative has been determined, questions often arise as to \emph{why} the chosen alternative is best, especially, why is it better than the second-best alternative? 
+%
+An answer that simply mentions the overall valuation score is in many cases not very satisfying, and one often wonders what it is about the first choice that makes it better than the competition.
+%
+We will address this question in Section \ref{sec:mds} where we show how we can \emph{explain} decisions by demonstrating how different attribute sets, working for and against a specific choice, contribute to the decision. We show how the concept of \emph{minimal dominating sets} \citep{EKF20padl} can be employed for that purpose and how it can be nicely integrated into the overall structure of our DSL.
 
 
-% Note that our DSL allows the users to encode the decision matrices without normalizing them which has implications for modification, and maintainability of the AHP code. Consider the normalized decision matrix between the alternative level and the feature level of the car example shown in the Figure \ref{fig:normalized}. Suppose that we want to amend this matrix with the values of a third alternative Toyota. To do so, we need to revert to the original unnormalized matrix, amend the original matrix with the values for Toyota and normalize the amended matrix again. There can be a situation where the person who collected the unnormalized matrix values in original units is not available and all we are left with is the normalized decision matrix. 
+In addition to explaining a decision, one might also wonder how relevant or decisive a decision is, that is, how much better is the first alternative than the second (or even third)? This often leads to questions of how much specific attributes have to change for the decision to change. 
+%
+We will address 
 
-% Scenarios like this make the task of modifying and maintaining the AHP code difficult. However, this is not a problem for our DSL where users can work with unnormalized values. It also provides combinators to assist in modifying the AHP model and the associated decision matrices which we elucidate below. 
+In the following sections we will address these questions.
 
-
-% Our DSL automates the analysis of the log described above using an explanation mechanism called \emph{Minimal Dominating Sets}~(MDS)~\citep{DBLP:conf/padl/ErwigKF20}. Using this explanation mechanism we can get explanations for comparative questions like ``Why is Honda a better option
-
-
-% provides the facility to answer comparative question of the form shown above using an explanation mechanism called \emph{Minimal Dominating Sets}~(MDS)~\citep{DBLP:conf/padl/ErwigKF20}. Moreover, depending on who the user is they may want explanations at varying degree of details. For example, an expert user of the domain may want detailed explanation as compared to a non-expert who may want a more abstract explanation. Our DSL affords this flexibility to the end users and provides combinators allowing them to generate explanations at the desired degree of detail. 
-
-% Additionally, given the magnitude of the policy and monetary implications of the decision problems analyzed with AHP, it is imperative that the decision makers get an explanation for the decisions suggested by AHP. In that regard, a popular tool that the researchers currently employ is a statistical technique called \emph{sensitivity analysis} \citep{triantaphyllou_2000} which analyzes how the change in the value of an input component impact the output generated by AHP. 
-
-% However, sensitivity analysis is not an ideal explanation mechanism for AHP. Decision makers are mostly interested in seeking answers to the questions of the form ``Why was option $X$ recommended as a better alternative than option $Y$ by the AHP method?'' which the sensitivity analysis is not equipped to provide. Getting satisfactory answers to their questions may become the difference between accepting and rejecting the recommendations of the AHP especially when the two options seem equally good, that is their priority scores computed by AHP are close. 
-
-% Our DSL provides the facility to answer comparative question of the form shown above using an explanation mechanism called \emph{Minimal Dominating Sets}~(MDS)~\citep{DBLP:conf/padl/ErwigKF20}. Moreover, depending on who the user is they may want explanations at varying degree of details. For example, an expert user of the domain may want detailed explanation as compared to a non-expert who may want a more abstract explanation. Our DSL affords this flexibility to the end users and provides combinators allowing them to generate explanations at the desired degree of detail. 
-
-
-% The relationship between any 2 consecutive levels of an AHP model is recorded using a \emph{decision matrix}, an example of which is shown in Figure \ref{fig:AHPExampleMatrices}: Figure \ref{fig:unnormalized} shows the values of the various columns of the decision matrix expressed in their original units, also called the unnormalized form of the decision matrix and Figure \ref{fig:normalized} shows the normalized form of the decision matrix wherein every entry in the matrix is represented by a number between 0 and 1. 
-
-%  To begin encoding the example, we start by representing the decision components at the various levels of AHP with Haskell data types as shown below.
+\NOTE{Edited up to here.}
 
 
 
+``Why was Honda preferred over BMW?'', ``Who amongst the friends and experts was responsible for tilting the scale in favour of Honda?'', and ``Which car features led to the selection of Honda over BMW?''. 
 
-% Our DSL allows the programmers to incrementally build the various decision matrices which we describe below. This is unlike other libraries which take a one shot approach at creating decision matrices, an inconvenience for the users.
-
-% We begin encoding the example by starting with an empty object map \prog{objects}, that is a map with empty attribute maps associated with the every object. \prog{objects} associates the various objects like Honda, BMW in this case with empty attribute maps generated by the \prog{noAttributes} function. \prog{mkAttr} and \prog{mkObj} are functions provided by the DSL which convert a list of pairs of the appropriate types to attribute and object values respectively. \prog{Set} is a type class that defines the \prog{members} function which lists all the constructors of a enumerable data type. 
-% \begin{haskellcode}
-% noAttributes :: Ord a => Attr a
-% noAttributes = mkAttr []
-
-% objects :: (Set o,Ord a) => Obj o a
-% objects = mkObj [(o,noAttributes) | o <- members]
-% \end{haskellcode}
-% We use the \prog{Spread} type to associate the distribution of values for different objects for a given attribute.
-% \begin{haskellcode}
-% type Spread o = [(o,Double)]
-% \end{haskellcode}
-
-% We can now add the price for each car by extending the empty object map by adding the price attribute to the attribute map of each car using the \prog{addAttribute} function defined below. The \prog{addAttribute} function takes as input the attribute to be added, the spread value of various objects for the given attribute, and the object map to be amended. It modifies the object map by adding the new attribute and the attribute value to the attribute map associated with every object of the object map.
-% \begin{haskellcode}
-% addAttribute :: (Ord o,Ord a) => a -> Spread o -> Obj o a -> Obj o a
-% addAttribute c as bs = mkObj [(b,f c av bv) | (a,av) <- as,
-%                               (b,bv) <- fromObj bs,a == b]
-%     where f x xv ys = Attr $ M.insert x xv (unAttr ys)
-% \end{haskellcode}
-
-
-% We get the object map \prog{featureP} by adding the prices of cars to the empty object map. 
-% \begin{haskellcode}
-% featuresP :: Obj Car Feature
-% featuresP = addAttribute Price [Honda --> 36000,BMW --> 24000] objects
-
-% *Car> featuresF
-% {Honda -> {Price -> 36000},
-%  BMW   -> {Price -> 24000}}
-%  \end{haskellcode}
-%  We can sequentially extend \prog{featureP} with safety ratings and fuel efficiency measurements for the cars which gives us the final map as shown below.
-% \begin{haskellcode}
-% featuresS :: Obj Car Feature
-% featuresS = addAttribute Safety [Honda --> 30,BMW --> 70] featuresP
-
-% featuresF :: Obj Car Feature
-% featuresF = addAttribute Fuel [Honda --> 36,BMW --> 24] featuresS
-
-% *Car> featuresF
-% {Honda -> {Price -> 36000,Fuel -> 36,Safety -> 30},
-%  BMW   -> {Price -> 24000,Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
-
-% If the incrementally gathering becomes tedious, we also have a way of creating the object map in go using the \prog{gather} function defined below. The function takes as input a map of the \prog{Spread} values for the various attributes of a given level, and recursively adds these attributes to the empty object map. The final object map has all the attributes added to it. 
-% \begin{haskellcode}
-% gather :: (Set o,Set a) => (a -> Spread o) -> Obj o a
-% gather f = foldl (\o a -> addAttribute a (f a) o) objects members
-% \end{haskellcode}
-% To add all the attributes in one go in our example, we create a \prog{featureInfo} function which is specifies the values of the various features for Honda and BMW. The \prog{featureInfo} function is supplied as an argument to the \prog{gather} function. \prog{feature} and \prog{featureF} are the same object maps constructed in different ways.
-% \begin{haskellcode}
-% featureInfo :: Feature -> Spread Car
-% featureInfo x 
-%     = case x of Price -> [Honda --> 24000,BMW --> 36000]
-%                 Safety -> [Honda --> 30,BMW --> 70]
-%                 Fuel   -> [Honda --> 36,BMW --> 24]
-
-% features :: Obj Car Feature
-% features = gather featureInfo
-% \end{haskellcode}
-
-% Note that our DSL allows the users to encode the decision matrices without normalizing them which has implications for modification, and maintainability of the AHP code. Consider the normalized decision matrix between the alternative level and the feature level of the car example shown in the Figure \ref{fig:normalized}. Suppose that we want to amend this matrix with the values of a third alternative Toyota. To do so, we need to revert to the original unnormalized matrix, amend the original matrix with the values for Toyota and normalize the amended matrix again. There can be a situation where the person who collected the unnormalized matrix values in original units is not available and all we are left with is the normalized decision matrix. 
-
-% Scenarios like this make the task of modifying and maintaining the AHP code difficult. However, this is not a problem for our DSL where users can work with unnormalized values. It also provides combinators to assist in modifying the AHP model and the associated decision matrices which we elucidate below. 
-
-% We can add Toyota to object map using the \prog{addAlternative} function. It takes as input the object to be appended to the object map, a map showing the values of the various attributes for the given object, and the object to be amended. The amended object map consists of the new object with its different attributes and attribute values.
-% \begin{haskellcode}
-% addAlternative :: (Ord o,Ord a) => o -> (a -> Double) -> Obj o a -> Obj o a
-% addAlternative o f vs = Obj $ M.insert o (mkAttr ls) (unObj vs)
-%     where ls = map (\x -> (x,f x)) members
-% \end{haskellcode}
-
-% We begin by amending the car data type to add the Toyota constructor and create a function \prog{toyotaAttributes} specifying the value of the various attributes for Toyota. 
-% \begin{haskellcode}
-% data Car = Honda | BMW | Toyota 
-
-% toyotaAttributes :: Feature -> Double
-% toyotaAttributes x = case x of
-%         Price  -> 20000
-%         Safety -> 50
-%         Fuel   -> 30
-% \end{haskellcode}
-% We finally use the \prog{addAlternative} function to add the Toyota alternative with its different attribute values stored in \prog{toyotaAttributes} to the existing object map \prog{features} which consists of Honda and BMW as shown below. 
-% \begin{haskellcode}
-% features2 :: Obj Car Feature
-% features2 = addAlternative Toyota toyotaAttributes features
-
-% *Car> features2
-% {Honda  -> {Price -> 24000,Fuel -> 36,Safety -> 30},
-%  BMW    -> {Price -> 36000,Fuel -> 24,Safety -> 70},
-%  Toyota -> {Price -> 20000,Fuel -> 30,Safety -> 50}}
-%  \end{haskellcode}
  
-% We can also delete an attribute from an already existing object map using the \prog{delAttribute} function. The function goes through every object of the object map sequentially and removes the specified attribute from the attribute map associated with each object.
-% \begin{haskellcode}
-% delAttribute :: (Ord o,Ord a) => Obj o a -> a -> Obj o a
-% delAttribute os a = mkObj [(o,f a ov) | (o,ov) <- fromObj os]
-%         where f x xs = Attr $ M.delete x (unAttr xs)
-% \end{haskellcode}
-% For example, if we want to get rid of the fuel efficiency attribute from the feature level in our car example, it could be done as follows.
-% \begin{haskellcode}
-% featuresD = delAttribute features Price
-% *Car> featuresD
-% {Honda ->  {Fuel -> 36,Safety -> 30},
-%  BMW   ->  {Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
-
-% We can also modify the value of an attribute for an object in an existing object map with the \prog{modAttribute} function as shown below.
-% \begin{haskellcode}
-% modAttribute :: (Ord a,Ord o) => Obj o a -> a -> o -> Double ->  Obj o a
-% modAttribute os a o' v 
-%     = mkObj [if o == o' then f a o v  ov else p | p@(o,ov) <- fromObj os]
-%     where f a o v ov = (o,Attr $ M.insert a v (M.delete a (unAttr ov)))
-% \end{haskellcode}
-% Assume that we become interested in slightly higher end model of Honda CRV which cost 30000 dollars instead of 240000, then we can amend the object map to reflect this change using the \prog{modAttribute} function as shown below.
-% \begin{haskellcode}
-% featuresM = modAttribute features Price Honda 45000
-% *Car> featuresM
-% {Honda  -> {Price -> 30000,Fuel -> 36,Safety -> 30},
-%  BMW    -> {Price -> 36000,Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
 
 
-
-The rest of the paper is structured as follows. In Section \ref{} we describe the MDS explanation mechanism along with the various combinators for explanations provided by the DSL. Finally, we finish with a substantial real world AHP example which shows the explanation capabilities afforded by our DSL described in Section \ref{}. 
-
-
-% \subsection{Introduction to MADM and Hierarchical Decision Making}\label{MADMIntro}
-
-
-% The various options available for selection to the decision maker are called \emph{alternatives}. The MADM process produces a ranking of the various alternatives based on various factors called \emph{attributes}. For example, assume that we want to buy a new car and have the option of buying either a Honda, BMW, or a Toyota which are the alternatives of the decision problem. Our criteria for selecting the car is based on the price of the car, the fuel efficiency of the car, and the safety rating of the car, the attributes of our decision problem. 
-
-% We assign each attribute a \emph{weight}, a fractional value signifying how important a certain attribute is to the overall decision making process. All the weights must sum to 1. For example, consider a price sensitive customer for whom safety is not a major concern. A possible weight distribution of the three attributes could be $0.6$, $0.3$, and $0.1$ respectively. Similarly, a cab company for which price as well as the fuel efficiency might be equally important may assign a weight distribution of $0.4$, $0.4$, and $0.2$ respectively. A matrix showing the value of the attributes for the various alternatives is called a \emph{decision matrix}.
-
-% MADM does not refer to just one method but rather to a family technique. We classify the MADM techniques based on how the attributes are arranged. In linear MADM techniques like the \emph{Weighted Sum Model (WSM)}, the attributes are arranged linearly like in the car selection example described above. A hierarchical MADM technique called the \emph{Analytic Hierarchy Process (AHP)} arranges the attributes in a hierarchical manner. In our car example, we could seek the advice of friends and experts to select the appropriate car each of who use price, fuel efficiency, and safety rating to evaluate the aptness of the cars. We then assign weights to the the recommendations of friends and experts. The AHP model for selecting the car is shown in Figure \ref{AHP_Car_Selection}. 
-
-% The specification of an AHP problem includes a set of decision matrices in addition to the AHP model of the problem. One decision matrix is required for every pair of consecutive levels in the AHP model. The alternatives in an AHP are placed at the bottom of the AHP model. In our example where the car brands Honda, and BMW are placed at the bottom of the AHP model. 
-
-% The AHP model for the car example has 3 pairs of consecutive levels and consequently three decision matrices. For example, one of these three decision matrices is between the level of alternatives, and the level of car features (like price, and fuel efficiency) and is shown in Figure \ref{fig:AHPExampleMatrices}: The car alternatives act as row labels of the matrix and the car features acts the column labels. 
-
-% The various columns of the decision matrices are specified in different units which makes any comparison between these columns difficult. Before proceeding any further in decision making, we normalize the various columns of the decision matrices. \emph{Normlization} aims to reduce all the values in the various column between 0 and 1. We discuss the normalization process in detail in Section \ref{}. 
-
-% Once all the decision matrices are normalized, we finally multiply the various decision matrices to get the final priorities of the alternatives. This is called the \emph{priority synthesis} step in AHP. This steps yield a priority score, which is a number between 0 and 1, for every alternative. The priority score of an alternative signifies its desirability in the current decision problem. That is, higher the priority score of an alternative the more desirable it is and vice versa. The sum of all the alterantives in the decision problem must sum to 1. 
-
-
-
-
-% \subsection{Introduction to MDS Explanations}
-% \NOTE{This section consists of introduction to linear MDS explanation to begin with. Post that we need a section on hierarchical MDS explanations.}
-
-% \subsection{The Current State of Tools for AHP and Our Contributions}
-% We looked at the software tools available for encoding AHP problems. These software tools can be divided into two categories based on their interface: programming language support in the form of libraries and web based tools. For example, \emph{ahp} is a library provided in R that allows programmers to encode AHP problems. While the library allows programmers ample flexibility to specify the AHP model, the interface is cumbersome. For instance, the structure of the AHP problem is encoded in a separate file which is then included in the R file. This complexity of interface means that only programmers and not the end users can use the library. The web based tools like \emph{Expert Choice} lie on the other end of the spectrum where the web based interface makes the specification of the AHP model easy. However, this ease of specification comes at the cost of flexibility and the end user are stuck with the functionalities that the tool makers deem necessary. 
-
-% Our DSL tries to remedy these problems by providing an intuitive interface to specify the AHP model. For instance, rather than having to provide normalized decision matrices to encode the relationship between consecutive levels, a common representation in most libraries used to encode AHP, we provide the end users with the ability to encode these relationships in the units they deem natural to express an attribute in. For example, it is easier for the end users to understand and specify the real prices of Honda and BMW which are 24,000 and 36,000 dollars respectively than to assign the normalized values of 0.4 and 0.6 respectively. 
-
-% The end users might need to modify the AHP model several times during the process of decision making. For example, they might want to add Toyota in addition to the Honda and BMW as an alternative in the car example. Additionally, they might want to modify the value of an attribute or remove an attribute altogether. These operations pose challenges for both the categories of tools specified which results in end users having to manually adjust the model themselves which may be burden some. 
-
-% Consider the normalized decision matrix between the alternative levels, and the car level shown in the Figure \ref{}. Suppose that we want to amend the normalized decision matrix shown in Figure with the values of the third alternative Toyota. To do so, we need to revert to the original unnormalized matrix, amend the original matrix with the values for Toyota and normalize the amended matrix again. There can be a situation where the person who collected the unnormalized matrix values in original units is not available and all we are left with is the normalized decision matrix. Situations like this make the task of modifying and maintaining the AHP code difficult. Our DSL remedies this by allowing the end users a more abstract interface for modification which automates all the manual steps listed in the modification process thereby making the code written using our DSL easy to modify and maintain. 
-
-% Another drawback of most of the other tools is that their primarily focus is to obtain a ranking of the alternatives. While admittedly obtaining the ranking is the primary focus of AHP, given the scale and importance of decision problems analyzed with AHP the confidence of the end users in the generated decisions is equally important. The other tools listed above make an effort in this regard by providing support for better visualization of the generated outcome, and in some cases providing the option of performing \emph{sensitivity analysis} on the various attributes of the AHP model. However, we  believe that the primary way to boost the end user confidence in the outcome is to enable them to understand the rationale for the decision generated by the AHP process. Our DSL records the intermediate steps that occur in the priority synthesis phase of AHP and uses this information to provide MDS explanations for the rankings produced by the AHP mechanism. 
-
-% We believe that one of our important contributions pertains to repuprosing the AHP mechanism. The theory that we describe in the paper makes AHP a explanation tool which can provide explanations at varying degrees of details in addition to just being a decision making tool. We substantiate our hypothesis through the election example in Section \ref{} where we already know the outcome of the polls but we still use AHP to better understand the rationale of the outcome. 
 
 \section{Explaining AHP Decisions With Minimal Dominating Sets}
+\label{sec:mds}
 
+---
 
-\section{Introduction to the DSL}
-% We introduce the various aspects of our DSL using the car example described in Section \ref{MADMIntro}. To begin with, we can represent the various levels of the decision process in AHP with Haskell data types as shown below.
-% \begin{haskellcode}
-% data Weight  = Weight 
-% data User    = Friend | Expert 
-% data Feature = Price | Fuel | Safety 
-% data Car     = Honda | BMW  
-% \end{haskellcode}
+is an explanation mechanism which automates the analysis of the log and can answer the questions posed above. Depending on who the user is they may want explanations at varying degree of details. For example, an expert user of the domain may want detailed explanation as compared to a non-expert who may want a more abstract explanation. Our DSL affords this flexibility to the end users and provides combinators allowing them to generate explanations at the desired degree of detail. We discuss the MDS explanation mechanism and the various explanation combinators in later on in the paper. 
 
-% \subsection{Creating Object Values}
-% Now we can relate the consecutive levels of the AHP which can happen in steps. We define an attribute map \prog{Attr a} and an object map \prog{Obj o a}as shown below. An attribute map lists the value of the various attributes listed at a given level of the AHP. We use an object map \prog{Obj o a} to associate an attribute \prog{a} like price or fuel efficiency with an object \prog{o} like Honda or BMW. 
-% \begin{haskellcode}
-% data Attr a = Attr {unAttr :: M.Map a Double}
-% data Obj o a = Obj {unObj :: M.Map o (Attr a)}
-% \end{haskellcode}
-% For example, the attribute map and the object map for the \prog{Feature} level corresponding to BMW are shown below. 
-% \begin{haskellcode}
-% -- Attribute map
-% {Price -> 36000,Fuel -> 24,Safety -> 70} 
-%  -- Object map
-% {BMW -> {Price -> 36000,Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
+---
 
-% To begin encoding the example, we can assign each car its price using the object and attributes maps that we defined. We start with an empty object map \prog{objects}, an object map which has empty attribute maps associated with every object. \prog{objects} associates the various objects like Honda, BMW in this case with empty attribute maps generated by the \prog{noAttributes} function. We extend the empty object map by adding the price attribute to the attribute map of each car using the \prog{addAttribute} function. We use the \prog{Spread} type to associate the distribution of values for different objects for a given attribute. 
-% \begin{haskellcode}
-% type Spread o = [(o,Double)]
+Consider the trace of the priority synthesis step of the car example in Figure \ref{fig:PriorityLog}. The trace consists of components for both Honda and BMW. Every component corresponding to Honda or BMW consists of a component label which is a tuple of constructors corresponding to the various levels of the AHP model and a component value. 
 
-% noAttributes :: Ord a => Attr a
-% noAttributes = mkAttr []
-
-% objects :: (Set o,Ord a) => Obj o a
-% objects = mkObj [(o,noAttributes) | o <- members]
-% \end{haskellcode}
-
-% The \prog{addAttribute} function takes as input the attribute to be added, the spread value of various objects for the given attribute, and the object map to be amended. It modifies the object map by adding the new attribute and the attribute value to the attribute map associated with every object of the object map.
-% \begin{haskellcode}
-% addAttribute :: (Ord o,Ord a) => a -> Spread o -> Obj o a -> Obj o a
-% addAttribute c as bs 
-%     = mkObj [(b,f c av bv) | (a,av) <- as,(b,bv) <- fromObj bs,a == b]
-%     where f x xv ys = Attr $ M.insert x xv (unAttr ys)
-% \end{haskellcode}
-% We get the object map \prog{featureP} by adding the prices of cars to the empty object map. Similarly, we can sequentially extend \prog{featureP} with safety and fuel efficiency measurements for the cars which gives us the final map.
-% \begin{haskellcode}
-% featuresP :: Obj Car Feature
-% featuresP = addAttribute Price [Honda --> 36000,BMW --> 24000] objects
-
-% *Car> featuresF
-% {Honda -> {Price -> 36000},
-%  BMW -> {Price -> 24000}}
-
-% featuresS :: Obj Car Feature
-% featuresS = addAttribute Safety [Honda --> 30,BMW --> 70] featuresP
-
-% featuresF :: Obj Car Feature
-% featuresF = addAttribute Fuel [Honda --> 36,BMW --> 24] featuresS
-
-% *Car> featuresF
-% {Honda -> {Price -> 36000,Fuel -> 36,Safety -> 30},
-%  BMW -> {Price -> 24000,Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
-% If the number of attributes at the two levels being connected by the object map \prog{Obj o a}, that is levels corresponding to types \prog{o} and \prog{a}, is large then we can compute the final object map in one go using the \prog{gather} function as shown below. The function takes as input a map of the \prog{Spread} values for the various attributes of a given level, and recursively adds these attributes to the empty object map. The final object map has all the attributes added to it. 
-% \begin{haskellcode}
-% gather :: (Set o,Set a) => (a -> Spread o) -> Obj o a
-% gather f = foldl (\o a -> addAttribute a (f a) o) objects members
-% \end{haskellcode}
-% To add all the attributes in one go in our example, we create a \prog{featureInfo} function which is specifies the values of the various features for Honda and BMW. The \prog{featureInfo} function is supplied as an argument to the \prog{gather} function. \prog{feature} and \prog{featureF} are the same object maps constructed in different ways.
-% \begin{haskellcode}
-% featureInfo :: Feature -> Spread Car
-% featureInfo x 
-%     = case x of Price -> [Honda --> 24000,BMW --> 36000]
-%                 Safety -> [Honda --> 30,BMW --> 70]
-%                 Fuel   -> [Honda --> 36,BMW --> 24]
-
-% features :: Obj Car Feature
-% features = gather featureInfo
-% \end{haskellcode}
-
-% Suppose at some point we want to add another brand say Toyota amongst the brand of cars under consideration for buying. This is achieved using an \prog{addAlternative} function. It takes as input the object to be appended to the object map, a map showing the values of the various attributes for the given object, and the object to be amended. The amended object map consists of the new object with its different attributes and attribute values.
-% \begin{haskellcode}
-% addAlternative :: (Ord o,Ord a) => o -> (a -> Double) -> Obj o a -> Obj o a
-% addAlternative o f vs = Obj $ M.insert o (mkAttr ls) (unObj vs)
-%     where ls = map (\x -> (x,f x)) members
-% \end{haskellcode}
-% To amend our example to consist of Toyota as well, we simply amend the car data type to add the Toyota constructor and create a function \prog{toyotaAttributes} specifying the value of the various attributes for Toyota. We finally use the \prog{addAlternative} function to add the Toyota alternative with its different attribute values stored in \prog{toyotaAttributes} to the already existing object map \prog{features} of Honda and BMW.
-% \begin{haskellcode}
-% data Car = Honda | BMW | Toyota 
-
-% toyotaAttributes :: Feature -> Double
-% toyotaAttributes x = case x of
-%         Price  -> 20000
-%         Safety -> 50
-%         Fuel   -> 30
-
-% features2 :: Obj Car Feature
-% features2 = addAlternative Toyota toyotaAttributes features
-
-% *Car> features2
-% {Honda -> {Price -> 24000,Fuel -> 36,Safety -> 30},
-%  BMW -> {Price -> 36000,Fuel -> 24,Safety -> 70},
-%  Toyota -> {Price -> 20000,Fuel -> 30,Safety -> 50}}
-%  \end{haskellcode}
- 
-% We can also delete an attribute from an already existing object map using the \prog{delAttribute} function. The function goes through every object of the object map sequentially and removes the speicified attribute from the attribute map associated with each object.
-% \begin{haskellcode}
-% delAttribute :: (Ord o,Ord a) => Obj o a -> a -> Obj o a
-% delAttribute os a = mkObj [(o,f a ov) | (o,ov) <- fromObj os]
-%         where f x xs = Attr $ M.delete x (unAttr xs)
-                               
-% featuresD = delAttribute features Price
-% *Car> featuresD
-% {Honda ->  {Fuel -> 36,Safety -> 30},
-%  BMW -> {Fuel -> 24,Safety -> 70}}
-% \end{haskellcode}
-
-% We can also modify the value of an attribute for an object in an existing object map with the \prog{modAttribute} function as shown below.
-% \begin{haskellcode}
-% modAttribute :: (Ord a,Ord o) => Obj o a -> a -> o -> Double ->  Obj o a
-% modAttribute os a o' v 
-%     = mkObj [if o == o' then f a o v  ov else p | p@(o,ov) <- fromObj os]
-%     where f a o v ov = (o,Attr $ M.insert a v (M.delete a (unAttr ov)))
-
-% featuresM = modAttribute features Price Honda 45000
-% \end{haskellcode}
-
-\subsection{Normalizing Object Values}
-The different attributes in an object mapping are measured in different units thereby making any sort of comparison between them difficult. We introduce the concept of normalization here using which we can go from absolute values of various attributes expressed in terms of their respective units to unit-less relative values between 0 and 1. 
-
-The normalization process depends on the ``valency" of an attribute, that is whether the attribute is beneficial (positive) or non-beneficial (negative). As the name suggests, for a beneficial attribute like fuel efficiency (measured in say miles/gallon) a higher numerical value is desirable and a lower value is desirable for non-beneficial attributes like price. We define a type class \prog{AttrValence} which implements the \prog{valence} function. The \prog{valence} function specifies the valency of various attributes at a given level as demonstrated by the \prog{AttrValence} instance declaration of the \prog{Feature} data type shown below. 
-\begin{haskellcode}
-data Valence = Pos | Neg
-
-class Ord a => AttrValence a where
-   valence :: a -> Valence
-   valence _ = Pos
-
-instance AttrValence Feature where
-   valence Price  = Neg
-   valence Fuel   = Pos
-   valence Safety = Pos
-\end{haskellcode}
-Now we define the \prog{normalize} function which implements the normalization process for an attribute. It takes as input the attribute to be normalized, and a list of the value corresponding to this attribute for the various objects. It uses the \prog{valence} function to access the valency of the attribute. If the attribute has a positive valency then we divide every value in the list by the sum of all the values in the list. In the case of negative valency attribute, to get a normalized value, the reciprocal of the original value is divided by sum of reciprocals of all the values in the list. An important point to note is that normalized values produced as output sum to 1. 
-\begin{haskellcode}
-normalize :: AttrValence a => a -> Spread o -> Spread o
-normalize c as = let vs = [v | (_,v) <- as]
-                     s = sum vs
-                     s' = sum.map (\x -> 1/x) $ vs 
-                 in case valence c of
-                        Pos -> [(a,v/(sum vs)) | (a,v) <- as]
-                        Neg -> [(a,(1/v)/s') | (a,v) <- as]
-\end{haskellcode}
-For example, the normalized values of the car prices for the three car are shown below. Since, price is a negative valency feature the cheapest car is assigned the highest value by the normalization process indicating its high desirability.
-\begin{haskellcode}
-*Car> normalize Price [(Honda,24000),(BMW,36000),(Toyota,20000)]
-[(Honda,0.349),(BMW,0.233),(Toyota,0.419)]
-\end{haskellcode}
-\prog{Val o a} is a type synonym for \prog{Obj o a}. However, we use \prog{Val o a} to represent a normalized object mapping instead of \prog{Obj o a} which represents the unnormalized object mappings. The transformation from \prog{Obj o a} to \prog{Val o a} is achieved using a function called \prog{valuation} which uses the \prog{normalize} function to achieve normalization.
-\begin{haskellcode}
-*Car> valuation features2
-{Honda -> {Price -> 0.349,Fuel -> 0.400,Safety -> 0.200},
- BMW -> {Price -> 0.233,Fuel -> 0.267,Safety -> 0.467},
- Toyota -> {Price -> 0.419,Fuel -> 0.333,Safety -> 0.333}}
-\end{haskellcode}
-
-\NOTE{The valuation function is too complicated to show here. Simplify it. }
-
-\subsection{Combining Object Mappings}
-We generate the object mappings between all the adjacent levels of the AHP diagram. That is, we have the object mappings of these types: \prog{Obj Car Feature}, \prog{Obj Feature User}, and \prog{Obj User Weight}. We saw the construction of the object map of \prog{Obj Car Feature} in the previous section. The construction of \prog{Obj Feature User} and \prog{Obj User Weight} are shown below.
-\begin{haskellcode}
-userInfo :: User -> Spread Feature
-userInfo x 
-    = case x of 
-        Friend -> [Price --> 0.5,Fuel --> 0.3,Safety --> 0.2]
-        Expert -> [Price --> 0.2,Fuel --> 0.4,Safety --> 0.4]
-
-users :: Obj Feature User
-users = gather userInfo
-
-weights :: Obj User Weight
-weights = addAttribute Weight [Friend --> 0.6,Expert --> 0.4] objects
-\end{haskellcode}
-Once we have all the object maps, we can now combine to generate a final valuation of type \prog{Val Car (Feature,User,Weight)} We combine the valuation: The valuation \prog{Val Car Feature}, obtained by applying to \prog{valuation} function to the object map of type \prog{Obj Car Feature}, is combined with the object map with type \prog{Obj Feature User} and create a valuation \prog{Val Car (Feature,User)} which we in turn combine with the object map of \prog{Obj User Weight} which results in a final valuation of type \prog{Val Car (Feature,User,Weight)}. 
-
-To recursively create these valuations we define a class \prog{ExtendVal} with the \prog{extendBy} function to combine a valuation and an object mapping and create a new valuation. 
-
-\NOTE{Provide a brief description of the code shown below.}
-
-% \begin{haskellcode}
-% mkOneTuple :: (Ord o,Ord a) => Obj o a -> Obj o (OneTuple a)
-% mkOneTuple = mkObj.map (\(o,a) -> (o,f a)).fromObj
-%   where
-%     f = mkAttr.map (\(b,n) -> (OneTuple b,n)).fromAttr
-
-% class (Projector a b,Ord d,Ord o,Set b,AttrValence c) 
-%       => ExtendVal o a b c d | a b c -> d where
-%   mkTuple :: o -> (a,b,c) -> Double -> (o,(d,Double))
-
-%   extendBy :: Val o a -> Obj b c -> Val o d
-%   extendBy as bs
-%     = mkVal [mkTuple o (aa,b,cc) (av*cv) 
-%              |(o,a) <- fromObj as,(aa,av) <- fromAttr a,
-%               (b,c) <- (fromObj.valuation) bs,
-%               (cc,cv) <- fromAttr c, proj aa==b]
-
-% instance (Set a,AttrValence b,Ord o) => 
-%           ExtendVal o (OneTuple a) a b (a,b) where
-%   mkTuple o (a,_,b) n = (o,((only a,b),n))
-
-% instance (Set b,AttrValence c,Ord o,Ord a) => 
-%           ExtendVal o (a,b) b c (a,b,c) where
-%   mkTuple o ((a,b),_,c) n = (o,((a,b,c),n))
-
-% \end{haskellcode}
-
-Note that in the example below, we use the \prog{val} functions to perform two operations on the object value features: it performs a valuation of the object mapping and post that makes the attribute one element tuple.
-\begin{haskellcode}
-val :: (Set o,AttrValence a) => Obj o a -> Val o (OneTuple a)
-val = mkOneTuple . valuation
-
-cars :: Val Car (Feature,User,Weight)
-cars = val features `extendBy` users `extendBy` weights
-
-{Honda -> {(Price,Friend,Weight) -> 0.180,
-           (Fuel,Friend,Weight) -> 0.108,
-           (Safety,Friend,Weight) -> 0.036,
-           (Price,Expert,Weight) -> 0.048,
-           (Fuel,Expert,Weight) -> 0.096,
-           (Safety,Expert,Weight) -> 0.048},
- BMW -> {(Price,Friend,Weight) -> 0.120,
-         (Fuel,Friend,Weight) -> 0.072,
-         (Safety,Friend,Weight) -> 0.084,
-         (Price,Expert,Weight) -> 0.032,
-         (Fuel,Expert,Weight) -> 0.064,
-         (Safety,Expert,Weight) -> 0.112}}
-\end{haskellcode}
-
-The \prog{priority} function gets us the sum of all the individual attribute values corresponding to Honda or BMW thereby giving us the overall priority of cars.
-\begin{haskellcode}
-type Priority o = [(o,Fraction)]
-
-carPriority :: Priority Car 
-carPriority = priority cars
-
-*Car> carPriority
-[(Honda,0.516),(BMW,0.484)]
-\end{haskellcode}
-We can see that Honda pips out BMW with a higher priority value. However, since the priority values are close it may not be immediately apparent to the end user what attributes lead to the selection of Honda over BMW. We try answering this in next section. 
-
-\subsection{Generating Explanation}
-Once we have obtained the final valuation by combining all the object mappings, we can start generating explanations. The first step in generating the explanation for the car example involves selecting the relevant attributes for Honda and BMW. The \prog{select} function takes as input the final valuations for the car examples and filters the parts corresponding to Honda and BMW as can be seen below.
+In order to analyze the log, we might want to separate the trace components for Honda and BMW. This can be done using the \prog{select} function provided by the DSL as shown below. 
 \begin{haskellcode}
 type CarDecomp = Attr (Feature,User,Weight)
 
@@ -799,83 +777,115 @@ honda = select Honda carsVal
 
 bmw :: CarDecomp
 bmw = select BMW carsVal
-
-*Car> honda
-{Honda -> {(Price,Friend,Weight) -> 0.180,
-           (Fuel,Friend,Weight) -> 0.108,
-           (Safety,Friend,Weight) -> 0.036,
-           (Price,Expert,Weight) -> 0.048,
-           (Fuel,Expert,Weight) -> 0.096,
-           (Safety,Expert,Weight) -> 0.048}}
- 
-*Car> bmw
- {BMW -> {(Price,Friend,Weight) -> 0.120,
-          (Fuel,Friend,Weight) -> 0.072,
-          (Safety,Friend,Weight) -> 0.084,
-          (Price,Expert,Weight) -> 0.032,
-          (Fuel,Expert,Weight) -> 0.064,
-          (Safety,Expert,Weight) -> 0.112}}
 \end{haskellcode}
-We express the various MDS concepts like value difference, support, barrier, dominators, MDS as type synonyms of the attribute map as shown below. Finally an explanation consists of a tuple of the value difference, the barrier, the list of all the dominators, and the list of all the MDS explanations. 
+
+Note that same component labels are present in both Honda and BMW with different component values. Thus an element wise difference of the component values for Honda and BMW can allow us to compare their performance with regards to various decision components. This element wise difference between the trace components of two options is also known as \emph{value difference}. As a convention, we subtract the trace component for the less preferred option from that of the preferred option. In the DSL, we define the type \prog{ValDiff a}, which is a type synonym for the attribute map \prog{Attr a}, to represent the value difference. 
 \begin{haskellcode}
 type ValDiff a = Attr a 
-type Barrier a = Attr a 
-type Support a = Attr a 
-type MDS a = Attr a
-type Dom a = Attr a 
-type Explain b = (ValDiff b,Support b,Barrier b,[Dom b],[MDS b])
 \end{haskellcode}
-The value difference (computed with the \prog{diff} function) between Honda and BMW provides us with a element wise comparison between Honda and BMW. 
+The DSL defines a function \prog{onAttr} which takes as input a function, and two attribute maps. It applies the function recursively on the corresponding elements of the two attribute maps consquently generating an attribute map as the output. 
+\begin{haskellcode}
+onAttr :: Ord a => (Double -> Double -> Double) -> Attr a -> Attr a -> Attr a
+onAttr g x y =  Attr $ merge preserveMissing preserveMissing
+                       (zipWithMatched (\_->g)) (unAttr x) (unAttr y)
+\end{haskellcode}
+Using the function \prog{onAttr}, the DSL defines a function \prog{diff} which computes the value difference as shown below. 
+\begin{haskellcode}
+diff :: Ord a => Attr a -> Attr a -> Attr a
+diff = onAttr (-)
+\end{haskellcode}
+Now we can compute value difference between Honda and BMW as shown below. 
 \begin{haskellcode}
 vdCar :: CarDecomp
 vdCar = diff honda bmw
 
 *Car> vdCar
-{(Price,Friend,Weight) -> 0.060,
- (Fuel,Friend,Weight) -> 0.036,
- (Safety,Friend,Weight) -> -0.048,
- (Price,Expert,Weight) -> 0.016,
- (Fuel,Expert,Weight) -> 0.032,
- (Safety,Expert,Weight) -> -0.064}
+{(Price,Friend,Weight) -> 0.009,(Price,Expert,Weight) -> 0.002,
+ (Fuel,Friend,Weight) -> -0.009,(Fuel,Expert,Weight) -> -0.008,
+ (Safety,Friend,Weight) -> 0.004,(Safety,Expert,Weight) -> 0.006}
 \end{haskellcode}
-We can see that friends and experts feel that Honda is better is terms of price and fuel efficiency. However, both feel that BMW is a safer car. As the overall priority of the cars suggests, that raving reviews for safety ratings are not enough to turn the tide in favour of BMW. We can use the MDS concepts to determine the minimal set of features that lead to the selection of Honda. We use the \prog{explain} function to use the generate this explanation and \prog{pmds} to print this explanation. It turns out that even if experts had been neutral (but not negative) about the price of Honda, it still would have pipped BMW. That is, price considerations by friends, and fuel efficiency considerations by both friends and experts is the minimal reason for why Honda was selected over BMW.
+Looking at the value difference we can deduce that value difference components with positive component values represent the components where Honda has an edge over BMW. We find that Honda leads in the price, and safety considerations both amongst friends experts. Similarly, the negative value difference components represent the components where BMW has an edge over Honda. That is, BMW leads in fuel efficiency considerations amongst friends and experts. 
+
+The positive and negative components of the value difference are known as the \emph{support} and the \emph{barrier} for decision making. They are encoded in the DSL using the type synonyms \prog{Support a} and \prog{Barrier a} respectively, which are just type synonyms for the attribute map.
 \begin{haskellcode}
-exp0 :: Explain (Feature,User,Weight) 
-exp0 = explain vdCar
+type Barrier a = Attr a 
+type Support a = Attr a 
+\end{haskellcode}
+Now we can make an observation that since Honda has a higher priority score than BMW, the sum of the support components must outweigh the sum of the barrier components (-0.009 + -0.008 = -0.017). In other words, the sum of the barrier components represent the total barrier that the support components have to overcome. 
 
-*Car> pmds exp0
+Not all the support components may be required to overcome the total barrier. The subsets of the support that can overcome the total barrier are called the \emph{dominators}. We can have multiple dominators for a that can overcome the barrier. For the car example, we have two different dominators as shown below. The first dominator has 4 components and the second one has only 3 components. 
+\begin{haskellcode}
+{(Price,Friend,Weight) -> 0.009,(Price,Expert,Weight) -> 0.002,
+ (Safety,Friend,Weight) -> 0.004,(Safety,Expert,Weight) -> 0.006}
+ 
+ {(Price,Friend,Weight) -> 0.009,(Safety,Friend,Weight) -> 0.004,
+ (Safety,Expert,Weight) -> 0.006}
+\end{haskellcode}
+These dominators act as explanations for why Honda is selected over BMW. The first explanation tell us that importance that friends and experts give to the price advantage of Honda, and the importance that both friends and experts give to the safety advantage of Honda is the reason why Honda is selected over BMW. The second explanation doesn't use the price consideration by experts. That is, the second explanation (dominator) is more concise than the first one. 
 
-Value Difference: {(Price,Friend,Weight) -> 0.060,
-                   (Fuel,Friend,Weight) -> 0.036,
-                   (Safety,Friend,Weight) -> -0.048,
-                   (Price,Expert,Weight) -> 0.016,
-                   (Fuel,Expert,Weight) -> 0.032,
-                   (Safety,Expert,Weight) -> -0.064}
-
-Support: {(Price,Friend,Weight) -> 0.060,
-          (Fuel,Friend,Weight) -> 0.036,
-          (Price,Expert,Weight) -> 0.016,
-          (Fuel,Expert,Weight) -> 0.032}
-
-Barrier: {(Safety,Friend,Weight) -> -0.048,
-          (Safety,Expert,Weight) -> -0.064}
-
-MDS: {(Price,Friend,Weight) -> 0.060,
-      (Fuel,Friend,Weight) -> 0.036,
-      (Fuel,Expert,Weight) -> 0.032}
+Amongst the multiple dominators that we have it makes sense for us to choose the ones with the minimum number of support components. These dominators are also called \emph{minimal dominating sets} or MDS. For the car example, the second dominator is the MDS explanation. By their very construction, we can justify that MDS explanations are the minimal explanations for why Honda was preferred over BMW. In the DSL, we define the dominators and minimal dominating sets using the types which are again the type synonyms for the attribute map. 
+\begin{haskellcode}
+type Dom a = Attr a 
+type MDS a = Attr a 
 \end{haskellcode}
 
-\subsection{Explanation Transformations}
-The explanations generated thus far can be further improved by providing functionalities that transform these explanations and make them easier to understand.  
+The DSL defines an explanation by a type \prog{Explain b} to be a tuple of value difference, the support and the barrier components of the value difference, the list of all the dominators, and the list of all MDS explanations as shown below. 
+\begin{haskellcode}
+type Explain b = (ValDiff b,Support b,Barrier b,[Dom b],[MDS b])
+\end{haskellcode}
+The DSL also provides a function \prog{explanation} which takes as input the value difference between two options that we want to compare and generates an explanation for why one option is better than the other. It is defined as shown below. 
+\begin{haskellcode}
+explain :: Ord a => ValDiff a -> Explain a  
+explain v = (v,mkAttr support,mkAttr barrier,map mkAttr doms,map mkAttr mdss) 
+  where
+    d = map (\(x,y) -> (x,y)) (fromAttr v)  
+    (support,barrier) = partition (\x -> snd x>0) d 
+    f = abs.sum.map snd  
+    g f' = sortBy (compare `on` f')
+    btotal = f barrier
+    doms = g length $ [d | d <- subsequences support, f d > btotal]
+    mdss = (reverse.g f) $ takeWhile (\p -> length p == (length.head) doms) doms
+\end{haskellcode}
+Our definition of an explanation gives us a complete view of the various components involved in the explanation process. However, with so much information reading the complete information may become difficult for the user. We provide two functions, namely \prog{pdom} and \prog{pmds}, with the below type signatures which print the explanations in readable forms: Both these functions print the value difference, the support and the barrier. However, in addition to these common components, \prog{pdom} prints all the dominators whereas \prog{pmds} prints all the MDSs. We don't show the code for these functions as these are not very interesting.
+\begin{haskellcode}
+pdom :: Show b => Explain b -> IO ()
+pmds :: Show b => Explain b -> IO ()
+\end{haskellcode}
+
+Finally, we can generate an explanation for why Honda was selected over BMW as shown below and pretty print using \prog{pmds} function. 
+\begin{haskellcode}
+explCar :: Explain (Feature,User,Weight)
+explCar = explain vdCar
+
+*Car> pmds explCar
+
+Value Difference: {(Price,Friend,Weight) -> 0.009,(Price,Expert,Weight) -> 0.002,
+                  (Fuel,Friend,Weight) -> -0.009,(Fuel,Expert,Weight) -> -0.008,
+                  (Safety,Friend,Weight) -> 0.004,(Safety,Expert,Weight) -> 0.006}
+
+Support: {(Price,Friend,Weight) -> 0.009,(Price,Expert,Weight) -> 0.002,
+          (Safety,Friend,Weight) -> 0.004,(Safety,Expert,Weight) -> 0.006}
+
+Barrier: {(Fuel,Friend,Weight) -> -0.009,(Fuel,Expert,Weight) -> -0.008}
+
+MDS: {(Price,Friend,Weight) -> 0.009,(Safety,Friend,Weight) -> 0.004,
+      (Safety,Expert,Weight) -> 0.006}
+\end{haskellcode}
+
+
+\section{Combinators for Transforming Explanations}
+\label{sec:trans}
+
+In the last section, we generated an explanation for why Honda was preferred over BMW. Transforming explanations can make them easier to understand for an user either by presenting it in an easy to understand form or by allowing us to get answers more abstract questions. For our car example, we can answer more abstract questions like ``Which features led to the selection of Honda over BMW?'' or more fine grained questions about explanations like ``How important are friends as compared to experts in the selection of Honda over BMW?''. We also describe the combinators provided by the DSL for transforming explanations.
 
 \subsection{Decluttering Explanations}\label{ReduceExpl}
-To begin with we notice that the attribute \prog{Weight} remains constant throughout the explanation in the MDS explanation in \prog{exp0}. Removing it would enhance the readability of explanations. We use the \prog{reduce} function provided by the \prog{Reduce} type class to remove a constant attribute value from a multi-level attribute map. The element to be removed is selected by the type annotation accompanying the reduce function. The \prog{Reduce} class definition and its two instances corresponding to the tuple of three elements are shown below. The reduce function uses a helper function \prog{rmv}, another function provided by the \prog{Reduce} type class. The \prog{rmv} function removes an element from the tuple type based on type annotation. 
+To begin with, we notice that the attribute \prog{Weight} remains constant throughout the explanation in the MDS explanation in \prog{explCar} in the section above. Removing it would enhance the readability of explanations. We use the \prog{reduce} function provided by the \prog{Reduce} type class to remove a constant constructor value from all the component labels of a trace. The element to be removed is selected by the type annotation accompanying the reduce function. The \prog{Reduce} class definition and its two instances corresponding to the tuple of three elements are shown below. The reduce function uses a helper function \prog{rmv}, another function provided by the \prog{Reduce} type class, which removes an element from the tuple type based on type annotation. 
 \begin{haskellcode}
 class Reduce a b | a -> b where
   rmv :: a -> b 
   
   reduce :: (Ord a,Ord b) => Attr a -> Attr b 
-  reduce = mkAttr.map (\(x,n) -> (rmv x,n)).fromAttr
+  reduce = mkAttr.map (\$(x,n) -> (rmv x,n)).fromAttr
 
 instance Reduce (a,b,c) (b,c) where
   rmv :: (a,b,c) -> (b,c)
@@ -889,25 +899,25 @@ instance Reduce (a,b,c) (a,b) where
   rmv :: (a,b,c) -> (a,b)
   rmv (a,b,c) = (a,b)
 \end{haskellcode}
-In the code shown below, we extract the MDS explanations from the explanation by pattern-matching on the complete explanation \prog{exp0} and select one of extracted MDS attributes using the \prog{head} function, and finally remove the \prog{Weight} attribute from the selected using the \prog{reduce} function. This transformed MDS explanation is finally bound to \prog{mds0}.
+In the code shown below, we extract the MDS explanations from the explanation by pattern-matching on the complete explanation \prog{expCar}, select one of extracted MDS explanations using \prog{head}, and finally remove the \prog{Weight} constructor from the selected MDS explanation using the \prog{reduce} function. This transformed MDS explanation is finally bound to \prog{mdsCar}.
 \begin{haskellcode}
-mds0 :: MDS (User,Feature)
-mds0 = let (_,_,_,ms,_) = exp0
-       in  reduce (head ms)::Attr (User,Feature)
+mdsCar :: MDS (User,Feature)
+mdsCar = let (_,_,_,_,mdss) = expCar
+         in  reduce (head mdss)::Attr (User,Feature)
        
-*Car> mds0
-{(Price,Friend) -> 0.060,
- (Fuel,Friend) -> 0.036,
- (Fuel,Expert) -> 0.032}
+*Car> mdsCar
+{(Price,Friend) -> 0.009,(Safety,Friend) -> 0.004,(Safety,Expert) -> 0.006}
 \end{haskellcode}
 
-\subsection{Factorizing Explanations}
-The MDS explanations look a little less once they have been transformed with the \prog{reduce} function. However, parsing the significance of the individual attributes from the components of the MDS can be difficult. For example, in the \prog{mds0} explanation (Section \ref{ReduceExpl}) how do we understand the significance of the individual components. We could ask ``How does the opinion of friends compare against that of the experts in the decision to buy Honda over BMW?''. Similarly, we could ask ``How significant are the roles of the individual car features in the decision making process?''. We answer these fine grained questions about the MDS explanations using a function called \prog{factorize} provided by the \prog{GroupBy} type class which we describe in the next section. 
+\subsection{Abstracting Explanations}
+So far we have tried making explanations easier to understand for the end users. However, the explanation terms (MDS explanations) involve features from various levels which can make an explanation difficult to understand. Most human activities involve a complex interplay of various factors. It is not uncommon for us to untangle the complex interaction between the various factors and understand them one factor at a time. For example, the modern economy is a highly complex system and may depend on environmental factors like amount of rainfall, political factors like stability of the government in the country, and human/social factors like quality of labour force. It is not uncommon for economists/commentators to explain a certain economic event in terms of one factor. For example, the most popular explanation for 2008 financial crisis is the housing market collapse. 
 
-\subsubsection {The GroupBy type class}
+The \emph{generalize} function provided by the type class \prog{Generalize} allows the end users to choose the level at which they seek explanation and provides the explanation at the selected level. In the context of the car example, this means that users can query ``Whose opinion prevailed in favoring Honda over BMW?''. Similarly, we can also ask ``What car features lead to the selection of Honda over BMW?''. 
+
+
 Before we describe the design of the \prog{GroupBy} type class, we briefly discuss two of its superclasses, namely the \prog{Projector} and \prog{SumOut} type class. 
 
-\prog{Projector a b} is a multi-parameter type class. The definition of the type class and its two instances for the pair type are shown below. The \prog{proj} function provided by the \prog{Projector} type class projects an element from a n-tuple based on the type annotation.
+\prog{Projector a b} is a multi-parameter type class. The definition of the type class and its two instances for the pair type are shown below. The \prog{proj} function provided by the \prog{Projector} type class projects an element from a n-tuple based on type annotation.
 \begin{haskellcode}
 class Projector a b | a -> b where
   proj :: a -> b 
@@ -923,7 +933,7 @@ Fuel
 *Car> proj (Friend,Fuel) :: User
 Friend
 \end{haskellcode}
-\prog{SumOut a b} is again a multi-parameter type class which provides the \prog{sumOut} function that sums out the attributes corresponding to all but one level (the level corresponding to level \prog{b}) from \prog{Attr a}. For example, \prog{SumOut (a,b) b} singnifies that from the combined attribute maps of levels \prog{a} and \prog{b}, the attributes corresponding to type \prog{a} are summed out thereby generating a new attribute map entirely in terms of attributes of type \prog{b}. \prog{SumOut a b} is a sub-class of \prog{Projector a b}. Its type class definition and the two instances for the pair type are shown below. 
+\prog{SumOut a b} is again a multi-parameter type class which defines the \prog{sumOut} function. The function takes an attribute map as input, which are the components of a trace. It sums out the constructors corresponding to all but one level (the level corresponding to type \prog{b}) from all the component labels of the attribute map of type \prog{Attr a}, generating an attribute map of type \prog{Attr b}.
 \begin{haskellcode}
 class (Projector a b,Ord b) => SumOut a b | a -> b where
   sumOut :: Attr a -> Attr b 
@@ -931,55 +941,25 @@ class (Projector a b,Ord b) => SumOut a b | a -> b where
     where h xs = ((f.head) xs,(sum.map snd) xs)
           g x y = f x == f y
           f = proj.fst
-
+\end{haskellcode}
+ For example, \prog{SumOut (a,b) b} signifies that from the combined attribute map of levels \prog{a} and \prog{b}, the attributes (constructors) corresponding to data type \prog{a} are summed out thereby generating a new attribute map entirely in terms of constructors of data type \prog{b}. \prog{SumOut a b} is a sub-class of \prog{Projector a b}. Its type class definition and the two instances for the pair type are shown below. 
+\begin{haskellcode}
 instance Ord b => SumOut (a,b) b 
 instance Ord a => SumOut (a,b) a 
 \end{haskellcode}
-In the first example shown below, the value difference between Honda and BMW is expressed entirely in terms of the \prog{User} attribute by summing out the other attributes from the value difference. Similarly, in the second example the same value difference is expressed in terms of the \prog{Feature} attributes.
+
+In the example shown below, the value difference between Honda and BMW is expressed entirely in terms of the constructors of \prog{User} by summing out the constructors of \prog{Feature} data type in the value difference.
 \begin{haskellcode}
 *Car> sumOut vdCar :: Attr User
-{Friend -> 0.048,Expert -> -0.016}
- 
+{Friend -> 0.004,Expert -> 0.001}
+\end{haskellcode}
+Similarly, the same value difference is expressed in terms of the constructors of \prog{Feature}.
+\begin{haskellcode}
 *Car> sumOut vdCar :: Attr Feature
-{Price -> 0.076,Fuel -> 0.068,Safety -> -0.112}
+{Price -> 0.011,Fuel -> -0.016,Safety -> 0.010}
 \end{haskellcode}
 
-Factorization of an explanation extracts the individual contributions of attributes of a given level. It also shows how these contributions are synthesized. The level for which the contributions of the attributes is to be computed is conveyed by type annotation. The \prog{factorize} function sums out the attributes of all but the chosen level to get the contribution of attributes of the chosen level while also tracking how the individual components from the original attribute contribute.
-\begin{haskellcode}
-type Factor b c = [(b,Attr c,Double)]
-
-class (SumOut a b,Reduce a c,Projector a b) => GroupBy a b c | a -> b c where 
-  factorize :: (Ord a,Ord b,Ord c) => Attr a -> Factor b c
-  factorize xs = zipWith (\x y -> (fst x,reduce y,snd x)) (h xs) (k xs)
-      where h = sort.fromAttr.sumOut
-            k = map mkAttr.groupBy g.sortBy (compare `on` f).fromAttr 
-            g x y = f x == f y
-            f = proj.fst 
-\end{haskellcode}
-For example, consider the MDS explanation for \prog{mds0} from Section \ref{ReduceExpl}. The factorized explanation for \prog{mds0} in terms of the \prog{Feature} level is shown below. \prog{pFact} function pretty prints the factorizations. The factorized representation answers to the question about the relative importance of the price and fuel attributes in the explanation for selecting Honda over BMW. Clearly price seems to be a more important factor than fuel in the decision making process.
-\begin{haskellcode}
-m01 = pFact (factorize mds0 :: Factor Feature User)
-
-*Car> m01
-Price : 0.060 ({Friend -> 0.060})
-Fuel : 0.068 ({Friend -> 0.036,Expert -> 0.032})
-\end{haskellcode}
-Similarly, for the \prog{User} level, it turns out that friends had more of a say in tilting the scale in favour of Honda as compared to experts. 
-\begin{haskellcode}
-m02 = pFact (factorize mds0 :: Factor User Feature)
-
-*Car> m02
-Friend : 0.096 ({Price -> 0.060, Fuel -> 0.036})
-Expert : 0.032 ({Fuel -> 0.032})
-\end{haskellcode}
-
-\subsection{Localizing Explanations}
-We have tried making explanations easier to consume. However, the explanation terms (MDS explanations) involve features from various levels. The involvement of multiple levels makes it difficult for the end user to consume the explanation. Most human activities involve a complex interplay of various factors. It is not uncommon for us to untangle the complex interaction between the various factors and understand them one factor at a time. For example, the modern economy is a highly complex system and may depend on environmental factors like amount of rainfall, political factors like stability of the government in the country, and human/social factors like quality of labour force. It is not uncommon for economists/commentators to explain a certain economic event in terms of one factor. For example, the most popular explanation for 2008 financial crisis is the housing market collapse. 
-
-The \emph{generalize} function provided by the type class \prog{Generalize} allows the end users to choose the level at which they seek explanation and provides the explanation at the selected level. In the context of the car example, this means that users can query ``Whose opinion prevailed in favoring Honda over BMW?''. Similarly, we can also ask ``What car features lead to the selection of Honda over BMW?''. 
-\subsubsection{Type Class Generalize}
-
-\prog{Generalize a b} is a multi-argument type class where type \prog{a} represents the value difference consisting of attribute values from all the levels and type \prog{b} represents the level at which explanation is desired. \prog{Generalize a b} is a sub-class of class The \prog{generalize} function uses \prog{sumOut} to amend the value difference in terms of attributes of level \prog{b} entirely and generates explanations for this amended value difference. \prog{Generalize a b} is a sub-class of \prog{SumOut a b}
+\prog{Generalize a b} is a multi-argument type class where type \prog{a} is the tuple of all the data types corresponding to the various levels of the AHP model and type \prog{b} represents the level at which explanation is desired. It is defined as shown below along with its two instance definitions for the pair type. 
 \begin{haskellcode}
 class (Ord a,Ord b,SumOut a b) => Generalize a b | a -> b where
     generalize :: ValDiff a -> Explain b
@@ -988,35 +968,75 @@ class (Ord a,Ord b,SumOut a b) => Generalize a b | a -> b where
 instance (Ord a,Ord b) => Generalize (a,b) a 
 instance (Ord a,Ord b) => Generalize (a,b) b 
 \end{haskellcode}
-The total value difference remains constant throughout the various levels: We simply redistribute the value difference in terms of the elements at that level using the \prog{sumOut} function.
+\prog{Generalize a b} is a sub-class of \prog{SumOut a b}. The \prog{generalize} function uses \prog{sumOut} to covert the composite value difference of type \prog{a} to a value difference of type \prog{b} and generates explanations using this amended value difference. An interesting property to note that for the various types \prog{b}, the sum of the all the value different components remain constant. We simply redistribute the value difference in terms of the elements at that level using the \prog{sumOut} function.
 
-% I think the redistribution operation (processing of summing out the attributes) is a valid operation and doesn't impact the correctness of the explanation process.
-
-We see that at the level of users represented by \prog{exp1} in the code shown below, friends are the reason why Honda was selected over BMW. Similarly, at the level of features represented by \prog{exp2}, price and fuel are the reason why Honda was preferred. 
+For the car example, the explanation at the level of the decision makers is represented by \prog{expUser}. The explanation reveals something interesting about the choice of the decision makers which is the that both friends and experts prefer Honda over BMW. That is, both friends and experts are MDS explanations for selection of Honda over BMW. 
 \begin{haskellcode}
-exp1 :: Explain User
-exp1 = generalize vdCar
+expUser :: Explain User
+expUser = generalize vdCar
 
-*Car> pmds exp1
-Value Difference: {Friend -> 0.048,Expert -> -0.016}
+*Car> pmds expUser
 
-Support: {Friend -> 0.048}
+Value Difference:{Friend -> 0.004,Expert -> 0.001}
 
-Barrier: {Expert -> -0.016}
+Support: {Friend -> 0.004,Expert -> 0.001}
 
-MDS: {Friend -> 0.048}
+Barrier: {}
 
-exp2 :: Explain Feature
-exp2 = generalize vdCar
+MDS: {Friend -> 0.004}
+     {Expert -> 0.001}
+\end{haskellcode}
+Similarly, the explanation at the level of features is represented by \prog{expFeat}. We see that price and safety are the features that caused Honda to be preferred over BMW.
+\begin{haskellcode}
+expFeat :: Explain Feature
+expFeat = generalize vdCar
 
-*Car> pmds exp2
-Value Difference: {Price -> 0.076,Fuel -> 0.068,Safety -> -0.112}
+*Car> pmds expFeat
 
-Support: {Price -> 0.076,Fuel -> 0.068}
+Value Difference: {Price -> 0.011,MPG -> -0.016,Safety -> 0.010}
 
-Barrier: {Safety -> -0.112}
+Support: {Price -> 0.011,Safety -> 0.010}
 
-MDS: {Price -> 0.076,Fuel -> 0.068}
+Barrier: {MPG -> -0.016}
+
+MDS: {Price -> 0.011,Safety -> 0.010}
+\end{haskellcode}
+
+\subsection{Factorizing Explanations}
+There is a quantitative aspect to explanation as well. For the car example we might want to know ``How does the opinion of friends compare against that of the experts in the decision to buy Honda over BMW?'' and  ``How significant are the roles of the individual car features in the decision making process?''. We answer these fine grained questions about the MDS explanations using a transformation called \emph{factorization of explanation}. 
+
+Factorization of an explanation extracts the contributions of the individual attributes of a given level. The DSL defines a type \prog{Factor b c} where \prog{b} is the data type corresponding the level for which we want to get the individual contributions of the various attributes and \prog{c} is the tuple of types corresponding to all but type \prog{b}. 
+\begin{haskellcode}
+type Factor b c = [(b,Attr c,Double)]
+\end{haskellcode}
+
+The DSL also defines a type class called \prog{GroupBy} that defines a \prog{factorize} function, which can be used to factorize explanations. The level for which the contributions of the attributes is to be computed is conveyed by type annotation. The \prog{factorize} function sums out the attributes of all but the chosen level to get the contribution of attributes of the chosen level while also tracking how the individual components from the original attribute contribute to the overall scores of the attributes.
+\begin{haskellcode}
+class (SumOut a b,Reduce a c,SubDim a b) => GroupBy a b c | a -> b c where
+  factorize :: (Ord a,Ord b,Ord c) => Rec a -> Factor b c
+  factorize xs = zipWith mkFactor (attrImpact xs) (constituents xs)
+      where mkFactor     = \x y -> (fst x,y,snd x)
+            attrImpact   = sort . fromRec . sumOut
+            constituents = map (reduce.mkRec) . sortNgroup . fromRec
+            sortNgroup   = groupBy ((==) `on` proj.fst) 
+                           . sortBy (compare `on` proj.fst)
+
+\end{haskellcode}
+For example, consider the MDS explanation for \prog{mdsCar} from Section \ref{ReduceExpl}. The factorized explanation for \prog{mdsCar} in terms of the \prog{Feature} level is shown below. \prog{pFact} function pretty prints the factorizations. The factorized representation answers the question about the relative importance of the price and fuel attributes in the explanation for selecting Honda over BMW. Clearly, price seems to be a more important factor than fuel in the decision making process. We can also notice that while opinions of both the friends and experts contribute towards the price advantage for Honda over BMW, this advantage is primarily driven by the opinion of friends. In contrast all of the safety advantage of Honda is driven by the opinion of experts.
+\begin{haskellcode}
+mFeat = pFact (factorize mdsCar :: Factor Feature User)
+
+*Car> mFeat
+Price  : 0.011 ({Friend -> 0.009,Expert -> 0.002})
+Safety : 0.006 ({Expert -> 0.006})
+\end{haskellcode}
+Similarly, for the \prog{User} level, it turns out that friends contribute marginally more than the experts in the selection of Honda over BMW. Moreover, all of the friends' contribution is due to their price considerations in the decision making. The contribution of experts ic comprised of both their price and safety considerations with safety being the prime contributor. 
+\begin{haskellcode}
+mUser = pFact (factorize mdsCar :: Factor User Feature)
+
+*Car> mUser
+Friend : 0.009 ({Price -> 0.009})
+Expert : 0.008 ({Price -> 0.002,Safety -> 0.006})
 \end{haskellcode}
 
 \section{Case Study : Election Example}
@@ -1213,19 +1233,13 @@ We can do a similar analysis for Clinton as shown below. Note that the negative 
 policyClinton = pFact (factorize barrier :: Factor Policy (Demography,Geography))
 
 *Election> policyClinton
-Environment : -0.135 ({(Young,Rural) -> -0.020,
-                       (Young,Urban) -> -0.040,
-                       (MiddleAged,Rural) -> -0.019,
-                       (MiddleAged,Urban) -> -0.026,
-                       (Old,Rural) -> -0.021,
-                       (Old,Urban) -> -0.009})
+Environment : -0.135 ({(Young,Rural) -> -0.020,(Young,Urban) -> -0.040,
+                       (MiddleAged,Rural) -> -0.019,(MiddleAged,Urban) -> -0.026,
+                       (Old,Rural) -> -0.021,(Old,Urban) -> -0.009})
 
-Health : -0.065 ({(Young,Rural) -> -0.007,
-                  (Young,Urban) -> -0.013,
-                  (MiddleAged,Rural) -> -0.006,
-                  (MiddleAged,Urban) -> -0.009,
-                  (Old,Rural) -> -0.021,
-                  (Old,Urban) -> -0.009})
+Health : -0.065 ({(Young,Rural) -> -0.007,(Young,Urban) -> -0.013,
+                  (MiddleAged,Rural) -> -0.006,(MiddleAged,Urban) -> -0.009,
+                  (Old,Rural) -> -0.021,(Old,Urban) -> -0.009})
 \end{haskellcode}
 
 In this section we only show factorization with regards to policy and not elucidate factorizations with respect to geography or the demography. Generally, we determine the aptness of a factorization based on the tasks at hand and who the end user towards whom the explanation is aimed at. 
